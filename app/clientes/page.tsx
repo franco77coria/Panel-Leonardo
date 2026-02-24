@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getSaldoStatus, formatDateTime } from '@/lib/utils'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ClientesPage() {
     const clientes = await prisma.cliente.findMany({
         where: { activo: true },

@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getEstadoBadge } from '@/lib/utils'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 async function getDashboardData() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)

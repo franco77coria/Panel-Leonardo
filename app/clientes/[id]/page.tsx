@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ClienteSaldoEditor } from '@/components/ClienteSaldoEditor'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ClientePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const cliente = await prisma.cliente.findUnique({

@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getEstadoBadge } from '@/lib/utils'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function PedidosPage() {
     const pedidos = await prisma.pedido.findMany({
         include: { cliente: { select: { nombre: true } }, items: { select: { id: true } } },
