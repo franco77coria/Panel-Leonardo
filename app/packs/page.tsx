@@ -173,15 +173,15 @@ export default function PacksPage() {
                                 onClick={() => setPackSeleccionado(packSeleccionado?.id === pack.id ? null : pack)}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div>
-                                        <div style={{ fontWeight: 700, fontSize: 18 }}>🎁 {pack.nombre}</div>
+                                        <div style={{ fontWeight: 700, fontSize: 18 }}>{pack.nombre}</div>
                                         {pack.rubro && <span className="badge badge-blue" style={{ marginTop: 4 }}>{pack.rubro.nombre}</span>}
                                         {pack.descripcion && <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>{pack.descripcion}</p>}
                                         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>{pack.items.length} artículo{pack.items.length !== 1 ? 's' : ''}</p>
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: 8, marginTop: 14 }} onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => imprimirPack(pack)} className="btn btn-secondary btn-sm">🖨️ Imprimir PDF</button>
-                                    <button onClick={() => handleEliminar(pack.id, pack.nombre)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>🗑️</button>
+                                    <button onClick={() => imprimirPack(pack)} className="btn btn-secondary btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg> PDF</button>
+                                    <button onClick={() => handleEliminar(pack.id, pack.nombre)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg></button>
                                 </div>
                             </div>
                         ))}
@@ -194,8 +194,8 @@ export default function PacksPage() {
                                 <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <strong>{packSeleccionado.nombre}</strong>
                                     <div style={{ display: 'flex', gap: 8 }}>
-                                        <button onClick={() => imprimirPack(packSeleccionado)} className="btn btn-primary btn-sm">📄 PDF A4</button>
-                                        <button onClick={() => setPackSeleccionado(null)} className="btn btn-ghost btn-sm">✕</button>
+                                        <button onClick={() => imprimirPack(packSeleccionado)} className="btn btn-primary btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg> PDF</button>
+                                        <button onClick={() => setPackSeleccionado(null)} className="btn btn-ghost btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button>
                                     </div>
                                 </div>
                                 <table>

@@ -38,7 +38,6 @@ function NuevoPedidoPage() {
     const [notas, setNotas] = useState('')
     const [loading, setLoading] = useState(false)
 
-    // Load initial client if provided
     useEffect(() => {
         if (initialClienteId) {
             fetch(`/api/clientes/${initialClienteId}`).then(r => r.json()).then(c => {
@@ -118,27 +117,31 @@ function NuevoPedidoPage() {
         <>
             <div className="page-header">
                 <div>
-                    <Link href="/pedidos" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none' }}>← Pedidos</Link>
-                    <h1 className="page-title" style={{ marginTop: 4 }}>Nuevo Pedido</h1>
+                    <div className="breadcrumb">
+                        <Link href="/pedidos">Pedidos</Link>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="9 18 15 12 9 6" /></svg>
+                        <span>Nuevo</span>
+                    </div>
+                    <h1 className="page-title">Nuevo Pedido</h1>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                    <select value={estado} onChange={e => setEstado(e.target.value)} style={{ width: 'auto' }}>
+                <div className="page-actions">
+                    <select value={estado} onChange={e => setEstado(e.target.value)} style={{ width: 'auto', minWidth: 160 }}>
                         <option value="pendiente">Pendiente de Armado</option>
                         <option value="armado">Armado</option>
                     </select>
                     <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
-                        {loading ? 'Guardando...' : '💾 Guardar Pedido'}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /></svg>
+                        {loading ? 'Guardando...' : 'Guardar Pedido'}
                     </button>
                 </div>
             </div>
 
             <div className="page-body">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20, alignItems: 'start' }}>
-                    {/* Columna principal */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 20, alignItems: 'start' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        {/* Selector de cliente */}
+                        {/* Client selector */}
                         <div className="card">
-                            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Cliente</h2>
+                            <div className="card-header">Cliente</div>
                             <div style={{ position: 'relative' }}>
                                 <input
                                     type="text"
@@ -146,15 +149,14 @@ function NuevoPedidoPage() {
                                     value={clienteSeleccionado ? clienteSeleccionado.nombre : clienteQuery}
                                     onChange={e => { setClienteQuery(e.target.value); setClienteSeleccionado(null); searchClientes(e.target.value) }}
                                     onFocus={() => clienteQuery && setShowClienteDropdown(true)}
-                                    style={{ fontSize: 18, fontWeight: 600 }}
+                                    style={{ fontSize: 16, fontWeight: 600 }}
                                 />
                                 {showClienteDropdown && clientes.length > 0 && (
-                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid var(--border)', borderRadius: 'var(--radius)', zIndex: 10, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                    <div className="dropdown">
                                         {clientes.map(c => (
-                                            <div key={c.id} onClick={() => selectCliente(c)} style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontWeight: 500 }}
-                                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
-                                                onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
-                                                {c.nombre} {c.saldo > 0 && <span style={{ color: 'var(--red)', fontSize: 12 }}>• Debe {formatCurrency(Number(c.saldo))}</span>}
+                                            <div key={c.id} className="dropdown-item" onClick={() => selectCliente(c)}>
+                                                <span style={{ fontWeight: 500 }}>{c.nombre}</span>
+                                                {Number(c.saldo) > 0 && <span className="badge badge-red">{formatCurrency(Number(c.saldo))}</span>}
                                             </div>
                                         ))}
                                     </div>
@@ -162,15 +164,16 @@ function NuevoPedidoPage() {
                             </div>
                             {saldoInfo && (
                                 <div className={`alert alert-${saldoInfo.isDebt ? 'red' : 'green'}`} style={{ marginTop: 10 }}>
-                                    {saldoInfo.isDebt ? '⚠️' : '✅'} Saldo anterior: <strong>{saldoInfo.label}</strong>
-                                    {clienteSeleccionado?.direccion && <span style={{ marginLeft: 16 }}>📍 {clienteSeleccionado.direccion}</span>}
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                                    Saldo anterior: <strong style={{ marginLeft: 4 }}>{saldoInfo.label}</strong>
+                                    {clienteSeleccionado?.direccion && <span style={{ marginLeft: 16, opacity: 0.8 }}>{clienteSeleccionado.direccion}</span>}
                                 </div>
                             )}
                         </div>
 
-                        {/* Buscador de artículos */}
+                        {/* Article search */}
                         <div className="card">
-                            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Agregar Artículos</h2>
+                            <div className="card-header">Agregar Artículos</div>
                             <div style={{ position: 'relative' }}>
                                 <input
                                     type="text"
@@ -180,11 +183,9 @@ function NuevoPedidoPage() {
                                     onFocus={() => articuloQuery && setShowArticuloDropdown(true)}
                                 />
                                 {showArticuloDropdown && articulos.length > 0 && (
-                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid var(--border)', borderRadius: 'var(--radius)', zIndex: 10, maxHeight: 240, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                    <div className="dropdown">
                                         {articulos.map(a => (
-                                            <div key={a.id} onClick={() => addItem(a)} style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)' }}
-                                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
-                                                onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
+                                            <div key={a.id} className="dropdown-item" onClick={() => addItem(a)}>
                                                 <span>{a.nombre}</span>
                                                 <strong style={{ color: 'var(--primary-light)' }}>{formatCurrency(Number(a.precio))}</strong>
                                             </div>
@@ -194,15 +195,15 @@ function NuevoPedidoPage() {
                             </div>
                         </div>
 
-                        {/* Tabla de ítems */}
+                        {/* Items table */}
                         {items.length > 0 && (
                             <div className="table-container">
                                 <table>
                                     <thead>
                                         <tr>
                                             <th>Artículo</th>
-                                            <th style={{ width: 120 }}>Cantidad</th>
-                                            <th>Precio Unit.</th>
+                                            <th style={{ width: 100 }}>Cant.</th>
+                                            <th className="hide-mobile">Precio</th>
                                             <th>Subtotal</th>
                                             <th style={{ width: 40 }}></th>
                                         </tr>
@@ -218,21 +219,23 @@ function NuevoPedidoPage() {
                                                         min="0"
                                                         value={item.cantidad}
                                                         onChange={e => updateCantidad(item.articuloId, e.target.value)}
-                                                        style={{ width: 100, padding: '6px 10px', fontWeight: 700 }}
+                                                        style={{ width: 80, padding: '5px 8px', fontWeight: 700, textAlign: 'center' }}
                                                     />
                                                 </td>
-                                                <td>{formatCurrency(item.precioUnitario)}</td>
+                                                <td className="hide-mobile">{formatCurrency(item.precioUnitario)}</td>
                                                 <td><strong>{formatCurrency(item.cantidad * item.precioUnitario)}</strong></td>
                                                 <td>
-                                                    <button onClick={() => removeItem(item.articuloId)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>✕</button>
+                                                    <button onClick={() => removeItem(item.articuloId)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, fontSize: 16 }}>TOTAL:</td>
-                                            <td><strong style={{ fontSize: 20, color: 'var(--primary)' }}>{formatCurrency(total)}</strong></td>
+                                            <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700 }}>TOTAL</td>
+                                            <td><strong style={{ fontSize: 18, color: 'var(--primary)' }}>{formatCurrency(total)}</strong></td>
                                             <td></td>
                                         </tr>
                                     </tfoot>
@@ -240,7 +243,6 @@ function NuevoPedidoPage() {
                             </div>
                         )}
 
-                        {/* Notas */}
                         <div className="card">
                             <div className="form-group">
                                 <label>Notas (opcional)</label>
@@ -249,25 +251,28 @@ function NuevoPedidoPage() {
                         </div>
                     </div>
 
-                    {/* Panel frecuentes */}
+                    {/* Frequent items panel */}
                     <div style={{ position: 'sticky', top: 20 }}>
                         <div className="table-container">
-                            <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, background: '#fef9c3' }}>
-                                ⭐ Frecuentes del Cliente
+                            <div className="table-header" style={{ background: 'var(--yellow-bg)' }}>
+                                <span className="table-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--yellow)" stroke="var(--yellow)" strokeWidth={1}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                                    Frecuentes
+                                </span>
                             </div>
                             {frecuentes.length === 0 ? (
-                                <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 14, textAlign: 'center' }}>
+                                <div style={{ padding: 24, color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
                                     Seleccioná un cliente para ver sus artículos frecuentes
                                 </div>
                             ) : (
                                 <div style={{ maxHeight: 500, overflowY: 'auto' }}>
                                     {frecuentes.map(({ articulo, vecesComprado }) => (
-                                        <div key={articulo.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                        <div key={articulo.id} className="dropdown-item" onClick={() => addItem(articulo)}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{articulo.nombre}</div>
-                                                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatCurrency(Number(articulo.precio))} • {vecesComprado}x</div>
+                                                <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{articulo.nombre}</div>
+                                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatCurrency(Number(articulo.precio))} · {vecesComprado}x</div>
                                             </div>
-                                            <button onClick={() => addItem(articulo)} className="btn btn-primary btn-sm">+</button>
+                                            <button className="btn btn-primary btn-sm" style={{ padding: '3px 8px' }}>+</button>
                                         </div>
                                     ))}
                                 </div>

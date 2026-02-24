@@ -86,7 +86,7 @@ export default function LogisticaPage() {
             <div className="page-header">
                 <h1 className="page-title">Logística – Lista de Armado</h1>
                 {generado && (
-                    <button onClick={generarPDF} className="btn btn-primary">📄 Exportar PDF</button>
+                    <button onClick={generarPDF} className="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>Exportar PDF</button>
                 )}
             </div>
             <div className="page-body">
@@ -106,7 +106,7 @@ export default function LogisticaPage() {
                         </div>
                         {pedidos.length === 0 ? (
                             <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                                No hay pedidos pendientes de armado 🎉
+                                No hay pedidos pendientes de armado
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

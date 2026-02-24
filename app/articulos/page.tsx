@@ -64,7 +64,7 @@ export default function ArticulosPage() {
             <div className="page-header">
                 <h1 className="page-title">Artículos</h1>
                 <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={() => setShowMasivo(!showMasivo)} className="btn btn-secondary">📊 Actualización Masiva</button>
+                    <button onClick={() => setShowMasivo(!showMasivo)} className="btn btn-secondary">Actualización Masiva</button>
                     <button onClick={() => setShowNuevo(!showNuevo)} className="btn btn-primary">+ Nuevo Artículo</button>
                 </div>
             </div>
@@ -124,7 +124,7 @@ export default function ArticulosPage() {
             {showMasivo && (
                 <div className="page-body" style={{ paddingBottom: 0 }}>
                     <div className="card" style={{ background: '#fef9c3', borderColor: '#fde047' }}>
-                        <h2 style={{ fontWeight: 700, marginBottom: 12 }}>📊 Actualización Masiva de Precios</h2>
+                        <h2 style={{ fontWeight: 700, marginBottom: 12 }}>Actualización Masiva de Precios</h2>
                         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                             <div className="form-group">
                                 <label>Filtrar por</label>
@@ -196,11 +196,11 @@ export default function ArticulosPage() {
                                                 <td><span className="badge badge-gray">{a.unidad}</span></td>
                                                 <td>
                                                     <span style={{ color: dias > 30 ? 'var(--red)' : 'var(--text-muted)', fontSize: 13, fontWeight: dias > 30 ? 700 : 400 }}>
-                                                        {formatDate(a.fechaPrecio)} {dias > 30 && '⚠️'}
+                                                        {formatDate(a.fechaPrecio)} {dias > 30 && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth={2} style={{ verticalAlign: 'middle', marginLeft: 4 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <button onClick={() => handleDelete(a.id, a.nombre)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>🗑️</button>
+                                                    <button onClick={() => handleDelete(a.id, a.nombre)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg></button>
                                                 </td>
                                             </tr>
                                         )

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { formatCurrency, formatDate, getSaldoStatus, formatDateTime } from '@/lib/utils'
+import { formatCurrency, formatDate, getSaldoStatus } from '@/lib/utils'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -13,17 +13,19 @@ export default async function ClientesPage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Clientes</h1>
-                <Link href="/clientes/nuevo" className="btn btn-primary">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    Nuevo Cliente
-                </Link>
+                <div>
+                    <h1 className="page-title">Clientes</h1>
+                    <p className="page-subtitle">{clientes.length} clientes activos</p>
+                </div>
+                <div className="page-actions">
+                    <Link href="/clientes/nuevo" className="btn btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                        Nuevo Cliente
+                    </Link>
+                </div>
             </div>
 
             <div className="page-body">
-                {/* Stats rápidas */}
                 <div className="kpi-grid" style={{ marginBottom: 20 }}>
                     <div className="kpi-card">
                         <div className="kpi-label">Total Clientes</div>
@@ -50,10 +52,10 @@ export default async function ClientesPage() {
                             <thead>
                                 <tr>
                                     <th>Cliente</th>
-                                    <th>Dirección</th>
-                                    <th>Teléfono</th>
+                                    <th className="hide-mobile">Dirección</th>
+                                    <th className="hide-mobile">Teléfono</th>
                                     <th>Saldo</th>
-                                    <th>Alta</th>
+                                    <th className="hide-mobile">Alta</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -63,26 +65,25 @@ export default async function ClientesPage() {
                                     return (
                                         <tr key={c.id}>
                                             <td>
-                                                <Link href={`/clientes/${c.id}`} style={{ fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
+                                                <Link href={`/clientes/${c.id}`} style={{ fontWeight: 700, color: 'var(--primary-light)', textDecoration: 'none' }}>
                                                     {c.nombre}
                                                 </Link>
                                             </td>
-                                            <td style={{ color: 'var(--text-muted)' }}>{c.direccion || '-'}</td>
-                                            <td>
+                                            <td className="hide-mobile" style={{ color: 'var(--text-muted)' }}>{c.direccion || '–'}</td>
+                                            <td className="hide-mobile">
                                                 {c.telefono ? (
-                                                    <a href={`https://wa.me/54${c.telefono.replace(/\D/g, '')}`} target="_blank" style={{ color: 'var(--green)', textDecoration: 'none' }}>
-                                                        📱 {c.telefono}
+                                                    <a href={`https://wa.me/54${c.telefono.replace(/\D/g, '')}`} target="_blank" style={{ color: 'var(--green)', textDecoration: 'none', fontWeight: 500 }}>
+                                                        {c.telefono}
                                                     </a>
-                                                ) : '-'}
+                                                ) : '–'}
                                             </td>
                                             <td>
                                                 <span className={`badge badge-${saldo.color}`}>{saldo.label}</span>
                                             </td>
-                                            <td style={{ color: 'var(--text-muted)' }}>{formatDate(c.createdAt)}</td>
+                                            <td className="hide-mobile" style={{ color: 'var(--text-muted)' }}>{formatDate(c.createdAt)}</td>
                                             <td>
-                                                <div style={{ display: 'flex', gap: 8 }}>
+                                                <div style={{ display: 'flex', gap: 6 }}>
                                                     <Link href={`/clientes/${c.id}`} className="btn btn-ghost btn-sm">Ver</Link>
-                                                    <Link href={`/clientes/${c.id}/editar`} className="btn btn-secondary btn-sm">Editar</Link>
                                                     <Link href={`/pedidos/nuevo?clienteId=${c.id}`} className="btn btn-primary btn-sm">Pedido</Link>
                                                 </div>
                                             </td>

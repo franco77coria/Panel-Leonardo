@@ -3,15 +3,11 @@ import './globals.css'
 import { Sidebar } from '@/components/Sidebar'
 
 export const metadata: Metadata = {
-  title: 'Panel Leonardo',
-  description: 'Sistema de gestión para distribuidora',
+  title: 'Panel Leonardo – Sistema de Gestión',
+  description: 'Sistema de gestión integral para distribuidora',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body>
