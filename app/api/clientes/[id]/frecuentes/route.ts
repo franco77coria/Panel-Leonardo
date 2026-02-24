@@ -1,11 +1,12 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 
-// GET /api/clientes/[id]/frecuentes - Top 20 artículos más pedidos por este cliente
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+// GET /api/clientes/[id]/frecuentes
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const items = await prisma.pedidoItem.groupBy({
         by: ['articuloId'],
-        where: { pedido: { clienteId: params.id, estado: 'cerrado' } },
+        where: { pedido: { clienteId: id, estado: 'cerrado' } },
         _sum: { cantidad: true },
         _count: { articuloId: true },
         orderBy: { _count: { articuloId: 'desc' } },

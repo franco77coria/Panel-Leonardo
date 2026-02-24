@@ -1,12 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 
-type Params = { params: { id: string } }
-
 // GET /api/clientes/[id]
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const cliente = await prisma.cliente.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             pedidos: {
                 orderBy: { createdAt: 'desc' },
@@ -21,12 +20,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 // PUT /api/clientes/[id]
-export async function PUT(req: NextRequest, { params }: Params) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const body = await req.json()
     const { nombre, direccion, telefono, saldo } = body
 
     const cliente = await prisma.cliente.update({
-        where: { id: params.id },
+        where: { id },
         data: {
             ...(nombre !== undefined && { nombre }),
             ...(direccion !== undefined && { direccion }),
@@ -35,11 +35,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
         },
     })
 
-    // Si se editó el saldo manualmente, crear movimiento de ajuste
     if (saldo !== undefined) {
         await prisma.movimientoCC.create({
             data: {
-                clienteId: params.id,
+                clienteId: id,
                 tipo: 'ajuste',
                 monto: Number(saldo),
                 descripcion: 'Ajuste manual de saldo',
@@ -51,9 +50,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 // DELETE /api/clientes/[id]
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     await prisma.cliente.update({
-        where: { id: params.id },
+        where: { id },
         data: { activo: false },
     })
     return NextResponse.json({ ok: true })

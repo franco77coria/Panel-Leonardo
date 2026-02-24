@@ -4,9 +4,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ClienteSaldoEditor } from '@/components/ClienteSaldoEditor'
 
-export default async function ClientePage({ params }: { params: { id: string } }) {
+export default async function ClientePage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const cliente = await prisma.cliente.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             pedidos: {
                 orderBy: { createdAt: 'desc' },
@@ -43,8 +44,8 @@ export default async function ClientePage({ params }: { params: { id: string } }
                     <h1 className="page-title" style={{ marginTop: 4 }}>{cliente.nombre}</h1>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                    <Link href={`/pedidos/nuevo?clienteId=${params.id}`} className="btn btn-primary">Nuevo Pedido</Link>
-                    <Link href={`/clientes/${params.id}/editar`} className="btn btn-secondary">Editar</Link>
+                    <Link href={`/pedidos/nuevo?clienteId=${id}`} className="btn btn-primary">Nuevo Pedido</Link>
+                    <Link href={`/clientes/${id}/editar`} className="btn btn-secondary">Editar</Link>
                 </div>
             </div>
 
@@ -74,7 +75,7 @@ export default async function ClientePage({ params }: { params: { id: string } }
                         <div style={{ marginBottom: 16 }}>
                             <span className={`badge badge-${saldoInfo.color}`} style={{ fontSize: 16 }}>{saldoInfo.label}</span>
                         </div>
-                        <ClienteSaldoEditor clienteId={params.id} saldoActual={Number(cliente.saldo)} />
+                        <ClienteSaldoEditor clienteId={id} saldoActual={Number(cliente.saldo)} />
                     </div>
                 </div>
 

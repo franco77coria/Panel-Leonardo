@@ -1,18 +1,20 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 
-type Params = { params: { id: string } }
-
-export async function PUT(req: NextRequest, { params }: Params) {
+// PUT /api/articulos/[id]
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const body = await req.json()
     const articulo = await prisma.articulo.update({
-        where: { id: params.id },
+        where: { id },
         data: { ...body, fechaPrecio: new Date() },
     })
     return NextResponse.json(articulo)
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
-    await prisma.articulo.update({ where: { id: params.id }, data: { activo: false } })
+// DELETE /api/articulos/[id]
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
+    await prisma.articulo.update({ where: { id }, data: { activo: false } })
     return NextResponse.json({ ok: true })
 }
