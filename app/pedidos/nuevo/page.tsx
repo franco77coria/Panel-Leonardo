@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, getSaldoStatus } from '@/lib/utils'
@@ -10,7 +10,15 @@ interface Cliente { id: string; nombre: string; direccion?: string; telefono?: s
 interface Item { articuloId: string; nombre: string; cantidad: number; precioUnitario: number }
 interface Frecuente { articulo: Articulo; vecesComprado: number }
 
-export default function NuevoPedidoPage() {
+export default function NuevoPedidoPageWrapper() {
+    return (
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Cargando...</div>}>
+            <NuevoPedidoPage />
+        </Suspense>
+    )
+}
+
+function NuevoPedidoPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const initialClienteId = searchParams.get('clienteId')
