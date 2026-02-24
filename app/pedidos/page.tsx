@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getEstadoBadge } from '@/lib/utils'
 import Link from 'next/link'
-import { ExportPedidosPDF } from '@/components/ExportPDF'
+import { ExportPedidosPDF, PrintButton } from '@/components/ExportPDF'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +25,7 @@ export default async function PedidosPage() {
                 </div>
                 <div className="page-actions">
                     <ExportPedidosPDF pedidos={pedidos.map(p => ({ numero: p.numero, clienteNombre: p.cliente.nombre, fecha: p.createdAt.toISOString(), total: Number(p.total), estado: p.estado, items: p.items.length }))} />
+                    <PrintButton />
                     <Link href="/logistica" className="btn btn-secondary">Lista de Armado</Link>
                     <Link href="/pedidos/nuevo" className="btn btn-primary">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
