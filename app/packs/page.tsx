@@ -141,7 +141,7 @@ export default function PacksPage() {
                                                                 onChange={e => setItemsNuevo(itemsNuevo.map(i => i.articuloId === item.articuloId ? { ...i, cantidadSugerida: parseFloat(e.target.value) || 1 } : i))}
                                                                 style={{ width: 100, padding: '6px 10px' }} />
                                                         </td>
-                                                        <td><button onClick={() => setItemsNuevo(itemsNuevo.filter(i => i.articuloId !== item.articuloId))} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>✕</button></td>
+                                                        <td><button onClick={() => setItemsNuevo(itemsNuevo.filter(i => i.articuloId !== item.articuloId))} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button></td>
                                                     </tr>
                                                 )
                                             })}

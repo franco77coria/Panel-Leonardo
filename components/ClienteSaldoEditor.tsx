@@ -25,12 +25,13 @@ export function ClienteSaldoEditor({ clienteId, saldoActual }: { clienteId: stri
     if (!editing) {
         return (
             <div>
-                {saved && <div className="alert alert-green" style={{ marginBottom: 12 }}>✅ Saldo actualizado</div>}
-                <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 12 }}>
+                {saved && <div className="alert alert-green" style={{ marginBottom: 12 }}>Saldo actualizado correctamente</div>}
+                <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>
                     Podés editar el saldo manualmente para ajustes, pagos o correcciones.
                 </p>
                 <button className="btn btn-secondary" onClick={() => setEditing(true)}>
-                    ✏️ Editar Saldo
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                    Editar Saldo
                 </button>
             </div>
         )
@@ -47,7 +48,7 @@ export function ClienteSaldoEditor({ clienteId, saldoActual }: { clienteId: stri
                     onChange={e => setSaldo(e.target.value)}
                     autoFocus
                 />
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Positivo = debe, Negativo = a favor</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Positivo = debe · Negativo = a favor</span>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-primary" onClick={handleSave} disabled={loading}>

@@ -26,8 +26,12 @@ export default function NuevoClientePage() {
         <>
             <div className="page-header">
                 <div>
-                    <Link href="/clientes" style={{ fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none' }}>← Clientes</Link>
-                    <h1 className="page-title" style={{ marginTop: 4 }}>Nuevo Cliente</h1>
+                    <div className="breadcrumb">
+                        <Link href="/clientes">Clientes</Link>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="9 18 15 12 9 6" /></svg>
+                        <span>Nuevo</span>
+                    </div>
+                    <h1 className="page-title">Nuevo Cliente</h1>
                 </div>
             </div>
 
@@ -73,12 +77,13 @@ export default function NuevoClientePage() {
                                     onChange={e => setForm({ ...form, saldo: e.target.value })}
                                     placeholder="0.00"
                                 />
-                                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Positivo = debe, Negativo = a favor</span>
+                                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Positivo = debe · Negativo = a favor</span>
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                             <Link href="/clientes" className="btn btn-secondary">Cancelar</Link>
                             <button type="submit" className="btn btn-primary" disabled={loading}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /></svg>
                                 {loading ? 'Guardando...' : 'Guardar Cliente'}
                             </button>
                         </div>

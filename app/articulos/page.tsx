@@ -43,7 +43,7 @@ export default function ArticulosPage() {
         if (!confirm(`¿Aumentar ${masivo.porcentaje}% a todos los artículos del ${masivo.tipo} seleccionado?`)) return
         const res = await fetch('/api/articulos/masivo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(masivo) })
         const data = await res.json()
-        alert(`✅ Se actualizaron ${data.updated} artículos`)
+        alert(`Se actualizaron ${data.updated} artículos`)
         setShowMasivo(false); fetchAll()
     }
 
