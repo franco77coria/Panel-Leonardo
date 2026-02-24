@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getSaldoStatus } from '@/lib/utils'
 import Link from 'next/link'
+import { ExportClientesPDF } from '@/components/ExportPDF'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +19,7 @@ export default async function ClientesPage() {
                     <p className="page-subtitle">{clientes.length} clientes activos</p>
                 </div>
                 <div className="page-actions">
+                    <ExportClientesPDF clientes={clientes.map(c => ({ nombre: c.nombre, direccion: c.direccion || '', telefono: c.telefono || '', saldo: Number(c.saldo), fecha: c.createdAt.toISOString() }))} />
                     <Link href="/clientes/nuevo" className="btn btn-primary">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                         Nuevo Cliente

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import jsPDF from 'jspdf'
+import { ExportAllPacksPDF } from '@/components/ExportPDF'
 
 interface Rubro { id: string; nombre: string }
 interface Articulo { id: string; nombre: string; precio: number; unidad: string }
@@ -93,6 +94,7 @@ export default function PacksPage() {
         <>
             <div className="page-header">
                 <h1 className="page-title">Packs</h1>
+                <ExportAllPacksPDF packs={packs.map(p => ({ nombre: p.nombre, descripcion: p.descripcion || undefined, rubro: p.rubro?.nombre || undefined, items: p.items.map(i => ({ nombre: i.articulo.nombre, cantidad: i.cantidadSugerida, unidad: i.articulo.unidad, precio: Number(i.articulo.precio) })) }))} />
                 <button onClick={() => setShowNuevo(!showNuevo)} className="btn btn-primary">+ Nuevo Pack</button>
             </div>
 
