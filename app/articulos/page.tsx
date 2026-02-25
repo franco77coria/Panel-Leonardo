@@ -21,8 +21,10 @@ export default function ArticulosPage() {
     const [masivo, setMasivo] = useState({ tipo: 'rubro', id: '', porcentaje: '' })
     const [showNuevo, setShowNuevo] = useState(false)
     const [nuevoForm, setNuevoForm] = useState({ nombre: '', rubroId: '', proveedorId: '', costo: '', precio: '', unidad: 'unidad', permiteDecimal: false })
+    const [page, setPage] = useState(1)
+    const PER_PAGE = 20
 
-    useEffect(() => { fetchAll() }, [q, rubroId, proveedorId])
+    useEffect(() => { setPage(1); fetchAll() }, [q, rubroId, proveedorId])
     useEffect(() => {
         fetch('/api/rubros').then(r => r.json()).then(setRubros).catch(() => { })
         fetch('/api/proveedores').then(r => r.json()).then(setProveedores).catch(() => { })
@@ -187,7 +189,7 @@ export default function ArticulosPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {articulos.map(a => {
+                                    {articulos.slice((page - 1) * PER_PAGE, page * PER_PAGE).map(a => {
                                         const dias = daysSince(a.fechaPrecio)
                                         return (
                                             <tr key={a.id}>
@@ -210,6 +212,25 @@ export default function ArticulosPage() {
                                     })}
                                 </tbody>
                             </table>
+                        )}
+                        {/* Pagination */}
+                        {articulos.length > PER_PAGE && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
+                                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                                    Mostrando {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, articulos.length)} de {articulos.length}
+                                </span>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn btn-secondary btn-sm">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="15 18 9 12 15 6" /></svg>
+                                        Anterior
+                                    </button>
+                                    <span style={{ padding: '4px 12px', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{page} / {Math.ceil(articulos.length / PER_PAGE)}</span>
+                                    <button onClick={() => setPage(p => Math.min(Math.ceil(articulos.length / PER_PAGE), p + 1))} disabled={page >= Math.ceil(articulos.length / PER_PAGE)} className="btn btn-secondary btn-sm">
+                                        Siguiente
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="9 18 15 12 9 6" /></svg>
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}

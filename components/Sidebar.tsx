@@ -25,7 +25,9 @@ export function Sidebar() {
                 <button className="mobile-toggle" onClick={() => setOpen(!open)}>
                     {open ? <IconX size={24} /> : <IconMenu size={24} />}
                 </button>
-                <img src="/logo.png" alt="Papelera Leo" style={{ height: 32, objectFit: 'contain' }} />
+                <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.3px' }}>
+                    <span style={{ fontWeight: 400, fontSize: 13 }}>Papelera</span>{' '}LEO
+                </span>
             </div>
 
             {/* Overlay */}
@@ -34,7 +36,10 @@ export function Sidebar() {
             {/* Sidebar */}
             <aside className={`sidebar ${open ? 'open' : ''}`}>
                 <div className="sidebar-brand">
-                    <img src="/logo.png" alt="Papelera Leo" />
+                    <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>
+                        <span style={{ fontWeight: 400, fontSize: 16, display: 'block', letterSpacing: '3px', textTransform: 'uppercase', opacity: 0.7 }}>Papelera</span>
+                        LEO
+                    </h1>
                     <span>Sistema de Gestión</span>
                 </div>
                 <nav className="sidebar-nav">
