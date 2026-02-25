@@ -23,12 +23,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const body = await req.json()
-    const { nombre, direccion, telefono, saldo } = body
+    const { nombre, localidad, direccion, telefono, saldo } = body
 
     const cliente = await prisma.cliente.update({
         where: { id },
         data: {
             ...(nombre !== undefined && { nombre }),
+            ...(localidad !== undefined && { localidad }),
             ...(direccion !== undefined && { direccion }),
             ...(telefono !== undefined && { telefono }),
             ...(saldo !== undefined && { saldo }),

@@ -51,6 +51,7 @@ model Articulo {
 model Cliente {
   id            String          @id @default(cuid())
   nombre        String
+  localidad     String?
   direccion     String?
   telefono      String?
   saldo         Decimal         @default(0) @db.Decimal(12, 2)

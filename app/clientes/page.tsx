@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getSaldoStatus } from '@/lib/utils'
 import Link from 'next/link'
 import { ExportClientesPDF, PrintButton } from '@/components/ExportPDF'
+import { ClienteInlineEditor } from '@/components/ClienteInlineEditor'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export default async function ClientesPage() {
                     <p className="page-subtitle">{clientes.length} clientes activos</p>
                 </div>
                 <div className="page-actions">
-                    <ExportClientesPDF clientes={clientes.map(c => ({ nombre: c.nombre, direccion: c.direccion || '', telefono: c.telefono || '', saldo: Number(c.saldo), fecha: c.createdAt.toISOString() }))} />
+                    <ExportClientesPDF clientes={clientes.map(c => ({ nombre: c.nombre, direccion: (c as any).localidad || c.direccion || '', telefono: c.telefono || '', saldo: Number(c.saldo), fecha: c.createdAt.toISOString() }))} />
                     <PrintButton />
                     <Link href="/clientes/nuevo" className="btn btn-primary">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
@@ -55,10 +56,10 @@ export default async function ClientesPage() {
                             <thead>
                                 <tr>
                                     <th>Cliente</th>
-                                    <th className="hide-mobile">Dirección</th>
+                                    <th className="hide-mobile">Localidad</th>
+                                    <th className="hide-mobile">Domicilio</th>
                                     <th className="hide-mobile">Teléfono</th>
                                     <th>Saldo</th>
-                                    <th className="hide-mobile">Alta</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -72,18 +73,16 @@ export default async function ClientesPage() {
                                                     {c.nombre}
                                                 </Link>
                                             </td>
-                                            <td className="hide-mobile" style={{ color: 'var(--text-muted)' }}>{c.direccion || '–'}</td>
+                                            <td className="hide-mobile" style={{ color: 'var(--text-muted)', fontSize: 13 }}>{(c as any).localidad || '–'}</td>
                                             <td className="hide-mobile">
-                                                {c.telefono ? (
-                                                    <a href={`https://wa.me/54${c.telefono.replace(/\D/g, '')}`} target="_blank" style={{ color: 'var(--green)', textDecoration: 'none', fontWeight: 500 }}>
-                                                        {c.telefono}
-                                                    </a>
-                                                ) : '–'}
+                                                <ClienteInlineEditor clienteId={c.id} field="direccion" value={c.direccion || ''} placeholder="Agregar domicilio..." />
+                                            </td>
+                                            <td className="hide-mobile">
+                                                <ClienteInlineEditor clienteId={c.id} field="telefono" value={c.telefono || ''} placeholder="Agregar teléfono..." />
                                             </td>
                                             <td>
                                                 <span className={`badge badge-${saldo.color}`}>{saldo.label}</span>
                                             </td>
-                                            <td className="hide-mobile" style={{ color: 'var(--text-muted)' }}>{formatDate(c.createdAt)}</td>
                                             <td>
                                                 <div style={{ display: 'flex', gap: 6 }}>
                                                     <Link href={`/clientes/${c.id}`} className="btn btn-ghost btn-sm">Ver</Link>
