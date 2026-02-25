@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, formatDate, formatDateTime, getSaldoStatus, getEstadoBadge } from '@/lib/utils'
 import jsPDF from 'jspdf'
+import QRCode from 'qrcode'
 
 // Config - teléfono de Leo
-const TELEFONO_LEO = '2202 40-5741'
+const TELEFONO_LEO = '11 3808-8724'
+const WA_LINK = 'https://wa.me/5491138088724'
 
 interface Articulo { id: string; nombre: string; precio: number; rubro?: { nombre: string } }
 interface Item { id: string; articuloId: string; articulo: Articulo; cantidad: number; precioUnitario: number; descuento: number; estadoItem?: string | null }
@@ -81,29 +83,42 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
     }
 
     // ==================== PDF BOLETA ====================
-    const generarPDF = () => {
+    const generarPDF = async () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
         const pw = 210, margin = 12
         const cw = pw - 2 * margin // content width
         let y = margin
 
-        // ---------- HEADER: Logo + Info ----------
+        // ---------- QR Code WhatsApp ----------
+        let qrDataUrl = ''
         try {
-            doc.addImage('/logo.png', 'PNG', margin, y, 40, 20)
+            qrDataUrl = await QRCode.toDataURL(WA_LINK, { width: 200, margin: 1, color: { dark: '#1a2332', light: '#ffffff' } })
+        } catch { /* QR error */ }
+
+        // ---------- HEADER: Logo + Info + QR ----------
+        try {
+            doc.addImage('/logo.png', 'JPEG', margin, y, 40, 20)
         } catch { /* logo no disponible */ }
 
         // PAPELERA - grande y bold
         doc.setFontSize(26); doc.setFont('helvetica', 'bold')
         doc.text('Papelera', margin + 44, y + 8)
 
-        // Leo + teléfono - más chico, normal
+        // Leo + teléfono con icono WA
         doc.setFontSize(14); doc.setFont('helvetica', 'normal')
-        doc.text(`Leo`, margin + 44, y + 16)
+        doc.text('Leo', margin + 44, y + 16)
         doc.setFontSize(10)
-        doc.text(`${TELEFONO_LEO}`, margin + 56, y + 16)
+        doc.text(TELEFONO_LEO, margin + 56, y + 16)
+
+        // QR a la derecha
+        if (qrDataUrl) {
+            doc.addImage(qrDataUrl, 'PNG', pw - margin - 22, y, 22, 22)
+            doc.setFontSize(6); doc.setFont('helvetica', 'normal')
+            doc.text('WhatsApp', pw - margin - 11, y + 24, { align: 'center' })
+        }
 
         // ---------- Rectángulo superior dividido en 3 ----------
-        y += 24
+        y += 26
         const boxH = 14
         const col1W = cw * 0.4, col2W = cw * 0.3, col3W = cw * 0.3
 
