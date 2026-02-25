@@ -383,8 +383,11 @@ a {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-x: auto;
+  /* IMPORTANTE: Para que no rompa el diseño en móvil si la tabla es ancha */
   box-shadow: var(--shadow-sm);
+  -webkit-overflow-scrolling: touch;
+  /* Scroll suave en iOS */
 }
 
 .table-header {
@@ -742,6 +745,12 @@ textarea {
 
   .btn-lg {
     width: 100%;
+  }
+
+  /* Asegurarse que el main-content no crezca mágicamente y rompa el viewport */
+  .main-content {
+    width: 100%;
+    overflow-x: hidden;
   }
 }
 
