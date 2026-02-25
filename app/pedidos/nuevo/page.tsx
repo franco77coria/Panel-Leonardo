@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency, getSaldoStatus } from '@/lib/utils'
 
-interface Articulo { id: string; nombre: string; precio: number; unidad: string; permiteDecimal: boolean }
+interface Articulo { id: string; nombre: string; costo: number; precio: number; unidad: string; permiteDecimal: boolean }
 interface Cliente { id: string; nombre: string; direccion?: string; telefono?: string; saldo: number }
-interface Item { articuloId: string; nombre: string; cantidad: number; precioUnitario: number; estadoItem?: string; descuento?: number }
+interface Item { articuloId: string; nombre: string; cantidad: number; precioUnitario: number; precioBase: number; estadoItem?: string; descuento?: number }
 interface Frecuente { articulo: Articulo; vecesComprado: number }
 
 export default function NuevoPedidoPageWrapper() {
@@ -74,21 +74,31 @@ function NuevoPedidoPage() {
         loadFrecuentes(c.id)
     }
 
-    const getPrecioLista = (precioCosto: number) => {
-        return Number((precioCosto * listaPrecio).toFixed(2))
+    const getPrecioBase = (articulo: Articulo) => {
+        return Number(articulo.costo) > 0 ? Number(articulo.costo) : Number(articulo.precio)
     }
 
     const addItem = (articulo: Articulo) => {
-        const precioAplicado = getPrecioLista(Number(articulo.precio))
+        const precioBase = getPrecioBase(articulo)
+        const precioAplicado = Number((precioBase * listaPrecio).toFixed(2))
         const existing = items.find(i => i.articuloId === articulo.id)
         if (existing) {
             setItems(items.map(i => i.articuloId === articulo.id ? { ...i, cantidad: i.cantidad + 1 } : i))
         } else {
-            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, estadoItem: 'Entregado', descuento: 0 }])
+            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, precioBase, estadoItem: 'Entregado', descuento: 0 }])
         }
         setArticuloQuery('')
         setArticulos([])
         setShowArticuloDropdown(false)
+    }
+
+    const handleListaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newLista = Number(e.target.value)
+        setListaPrecio(newLista)
+        setItems(items.map(i => ({
+            ...i,
+            precioUnitario: Number((i.precioBase * newLista).toFixed(2))
+        })))
     }
 
     const updateCantidad = (articuloId: string, rawValue: string) => {
@@ -209,7 +219,7 @@ function NuevoPedidoPage() {
                                 <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                     Lista de Venta
                                 </div>
-                                <select value={listaPrecio} onChange={e => setListaPrecio(Number(e.target.value))} style={{ flex: 1, padding: '8px 12px', fontSize: 15, fontWeight: 600 }}>
+                                <select value={listaPrecio} onChange={handleListaChange} style={{ flex: 1, padding: '8px 12px', fontSize: 15, fontWeight: 600 }}>
                                     <option value={1.20}>Lista 1 (+20% sobre costo)</option>
                                     <option value={1.25}>Lista 2 (+25% sobre costo)</option>
                                     <option value={1.35}>Lista 3 (+35% sobre costo)</option>
@@ -233,7 +243,7 @@ function NuevoPedidoPage() {
                                         {articulos.map(a => (
                                             <div key={a.id} className="dropdown-item" onClick={() => addItem(a)}>
                                                 <span>{a.nombre}</span>
-                                                <strong style={{ color: 'var(--primary-light)' }}>{formatCurrency(Number(a.precio))}</strong>
+                                                <strong style={{ color: 'var(--primary-light)' }}>{formatCurrency(Number((getPrecioBase(a) * listaPrecio).toFixed(2)))}</strong>
                                             </div>
                                         ))}
                                     </div>
@@ -359,7 +369,7 @@ function NuevoPedidoPage() {
                                         <div key={articulo.id} className="dropdown-item" onClick={() => addItem(articulo)}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{articulo.nombre}</div>
-                                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatCurrency(Number(articulo.precio))} · {vecesComprado}x</div>
+                                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatCurrency(Number((getPrecioBase(articulo) * listaPrecio).toFixed(2)))} · {vecesComprado}x</div>
                                             </div>
                                             <button className="btn btn-primary btn-sm" style={{ padding: '3px 8px' }}>+</button>
                                         </div>
