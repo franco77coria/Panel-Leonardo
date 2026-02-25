@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatCurrency, daysSince, formatDate } from '@/lib/utils'
 import { ExportArticulosPDF, PrintButton } from '@/components/ExportPDF'
+import { ArticuloPrecioEditor } from '@/components/ArticuloPrecioEditor'
 
 interface Rubro { id: string; nombre: string }
 interface Proveedor { id: string; nombre: string }
@@ -67,7 +68,7 @@ export default function ArticulosPage() {
             <div className="page-header">
                 <h1 className="page-title">Artículos</h1>
                 <div style={{ display: 'flex', gap: 10 }}>
-                    <ExportArticulosPDF articulos={articulos.map(a => ({ nombre: a.nombre, rubro: a.rubro?.nombre || '', proveedor: a.proveedor?.nombre || '', costo: Number(a.costo), precio: Number(a.precio), unidad: a.unidad }))} />
+                    <ExportArticulosPDF articulos={articulos.map(a => ({ nombre: a.nombre, proveedor: a.proveedor?.nombre || '', precio: Number(a.precio), unidad: a.unidad }))} />
                     <PrintButton />
                     <button onClick={() => setShowMasivo(!showMasivo)} className="btn btn-secondary">Actualización Masiva</button>
                     <button onClick={() => setShowNuevo(!showNuevo)} className="btn btn-primary">+ Nuevo Artículo</button>
@@ -179,9 +180,7 @@ export default function ArticulosPage() {
                                 <thead>
                                     <tr>
                                         <th>Artículo</th>
-                                        <th>Rubro</th>
                                         <th>Proveedor</th>
-                                        <th>Costo</th>
                                         <th>Precio</th>
                                         <th>Unidad</th>
                                         <th>Últ. Actualización</th>
@@ -194,10 +193,10 @@ export default function ArticulosPage() {
                                         return (
                                             <tr key={a.id}>
                                                 <td><strong>{a.nombre}</strong></td>
-                                                <td>{a.rubro?.nombre ? <span className="badge badge-blue">{a.rubro.nombre}</span> : '-'}</td>
                                                 <td style={{ color: 'var(--text-muted)' }}>{a.proveedor?.nombre || '-'}</td>
-                                                <td style={{ color: 'var(--text-muted)' }}>{a.costo ? formatCurrency(Number(a.costo)) : '-'}</td>
-                                                <td><strong style={{ color: 'var(--primary)' }}>{formatCurrency(Number(a.precio))}</strong></td>
+                                                <td>
+                                                    <ArticuloPrecioEditor articuloId={a.id} precio={Number(a.precio)} onUpdate={fetchAll} />
+                                                </td>
                                                 <td><span className="badge badge-gray">{a.unidad}</span></td>
                                                 <td>
                                                     <span style={{ color: dias > 30 ? 'var(--red)' : 'var(--text-muted)', fontSize: 13, fontWeight: dias > 30 ? 700 : 400 }}>

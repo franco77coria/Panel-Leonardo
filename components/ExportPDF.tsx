@@ -136,7 +136,12 @@ export function ExportClientesPDF({ clientes }: { clientes: ClienteRow[] }) {
 }
 
 // Artículos List PDF
-interface ArticuloRow { nombre: string; rubro: string; proveedor: string; costo: number; precio: number; unidad: string }
+interface ArticuloRow {
+    nombre: string
+    proveedor: string
+    precio: number
+    unidad: string
+}
 
 export function ExportArticulosPDF({ articulos }: { articulos: ArticuloRow[] }) {
     const exportar = () => {
@@ -145,34 +150,20 @@ export function ExportArticulosPDF({ articulos }: { articulos: ArticuloRow[] }) 
 
         const cols = [
             { label: 'ARTÍCULO', x: 22 },
-            { label: 'RUBRO', x: 85 },
-            { label: 'UNIDAD', x: 120 },
-            { label: 'COSTO', x: 145 },
-            { label: 'PRECIO', x: 170 },
+            { label: 'PROVEEDOR', x: 120 },
+            { label: 'UNIDAD', x: 155 },
+            { label: 'PRECIO', x: 180 },
         ]
         y = pdfTableHeader(doc, y, cols)
 
         doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
-        let currentRubro = ''
         for (const a of articulos) {
             y = checkPage(doc, y)
-            // Rubro separator
-            if (a.rubro && a.rubro !== currentRubro) {
-                currentRubro = a.rubro
-                if (y > 20) { y += 2 }
-                doc.setFillColor(240, 240, 245)
-                doc.rect(20, y - 4, 170, 7, 'F')
-                doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
-                doc.text(currentRubro.toUpperCase(), 22, y)
-                y += 6
-                doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
-            }
-            doc.text(a.nombre.substring(0, 28), 22, y)
-            doc.text((a.rubro || '–').substring(0, 14), 85, y)
-            doc.text(a.unidad, 120, y)
-            doc.text(a.costo ? formatCurrency(a.costo) : '–', 145, y)
+            doc.text(a.nombre.substring(0, 45), 22, y)
+            doc.text((a.proveedor || '–').substring(0, 15), 120, y)
+            doc.text(a.unidad, 155, y)
             doc.setFont('helvetica', 'bold')
-            doc.text(formatCurrency(a.precio), 170, y)
+            doc.text(formatCurrency(a.precio), 180, y)
             doc.setFont('helvetica', 'normal')
             y += 6
         }
