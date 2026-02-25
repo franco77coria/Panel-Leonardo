@@ -3,7 +3,7 @@ import './globals.css'
 import { Sidebar } from '@/components/Sidebar'
 
 export const metadata: Metadata = {
-  title: 'Panel Leonardo – Sistema de Gestión',
+  title: 'Papelera Leo – Sistema de Gestión',
   description: 'Sistema de gestión integral para distribuidora',
 }
 

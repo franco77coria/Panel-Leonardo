@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
     const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } })
     if (!cliente) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
 
-    const total = items.reduce((s: number, i: { cantidad: number; precioUnitario: number }) => s + i.cantidad * i.precioUnitario, 0)
+    const total = items.reduce((s: number, i: { cantidad: number; precioUnitario: number; descuento?: number }) => {
+        const desc = Number(i.descuento) || 0
+        return s + i.cantidad * i.precioUnitario * (1 - desc / 100)
+    }, 0)
 
     const pedido = await prisma.pedido.create({
         data: {
@@ -38,14 +41,16 @@ export async function POST(req: NextRequest) {
             total,
             notas,
             items: {
-                create: items.map((i: { articuloId: string; cantidad: number; precioUnitario: number }) => ({
+                create: items.map((i: { articuloId: string; cantidad: number; precioUnitario: number; descuento?: number; estadoItem?: string }) => ({
                     articuloId: i.articuloId,
                     cantidad: i.cantidad,
                     precioUnitario: i.precioUnitario,
+                    descuento: Number(i.descuento) || 0,
+                    estadoItem: i.estadoItem || null,
                 })),
             },
         },
-        include: { items: true },
+        include: { items: { include: { articulo: true } }, cliente: true },
     })
 
     return NextResponse.json(pedido, { status: 201 })

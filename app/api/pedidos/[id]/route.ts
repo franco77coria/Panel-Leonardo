@@ -23,18 +23,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     let total: number | undefined
     if (items) {
-        total = items.reduce((s: number, i: { cantidad: number; precioUnitario: number }) => s + i.cantidad * i.precioUnitario, 0)
+        total = items.reduce((s: number, i: { cantidad: number; precioUnitario: number; descuento?: number }) => {
+            const desc = Number(i.descuento) || 0
+            return s + i.cantidad * i.precioUnitario * (1 - desc / 100)
+        }, 0)
     }
 
     const pedido = await prisma.$transaction(async (tx) => {
         if (items) {
             await tx.pedidoItem.deleteMany({ where: { pedidoId: id } })
             await tx.pedidoItem.createMany({
-                data: items.map((i: { articuloId: string; cantidad: number; precioUnitario: number }) => ({
+                data: items.map((i: { articuloId: string; cantidad: number; precioUnitario: number; descuento?: number; estadoItem?: string }) => ({
                     pedidoId: id,
                     articuloId: i.articuloId,
                     cantidad: i.cantidad,
                     precioUnitario: i.precioUnitario,
+                    descuento: Number(i.descuento) || 0,
+                    estadoItem: i.estadoItem || null,
                 })),
             })
         }
