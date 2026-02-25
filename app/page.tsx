@@ -35,10 +35,10 @@ export default async function DashboardPage() {
   const data = await getDashboardData()
 
   const kpis = [
-    { label: 'Pedidos de hoy', value: data.pedidosHoy, sub: 'pedidos cargados hoy', color: 'var(--blue)' },
-    { label: 'Total a cobrar hoy', value: formatCurrency(data.totalHoy), sub: 'suma de pedidos de hoy', color: 'var(--green)' },
-    { label: 'Pendientes de armado', value: data.pedidosPendientes, sub: 'pedidos sin armar', color: 'var(--yellow)' },
-    { label: 'Clientes con deuda', value: data.clientesConDeuda, sub: 'cuentas corrientes activas', color: 'var(--red)' },
+    { label: 'Pedidos de hoy', value: data.pedidosHoy, sub: 'Pedidos cargados hoy', color: 'var(--blue)' },
+    { label: 'Total a cobrar hoy', value: formatCurrency(data.totalHoy), sub: 'Suma de pedidos de hoy', color: 'var(--green)' },
+    { label: 'Pendientes de armado', value: data.pedidosPendientes, sub: 'Pedidos sin armar', color: 'var(--yellow)' },
+    { label: 'Clientes con deuda', value: data.clientesConDeuda, sub: 'Cuentas corrientes activas', color: 'var(--red)' },
   ]
 
   return (

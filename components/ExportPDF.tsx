@@ -215,14 +215,26 @@ export function ExportAllPacksPDF({ packs }: { packs: PackRow[] }) {
             y = pdfTableHeader(doc, y, itemCols)
 
             doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+            let packTotal = 0
             for (const item of pack.items) {
                 y = checkPage(doc, y)
                 doc.text(item.nombre.substring(0, 35), 24, y)
                 doc.text(`${item.cantidad} ${item.unidad}`, 120, y)
-                doc.text(formatCurrency(item.precio), 165, y)
+
+                const subtotalItem = item.cantidad * item.precio
+                packTotal += subtotalItem
+                doc.text(formatCurrency(subtotalItem), 165, y)
                 y += 6
             }
-            y += 6
+
+            // Print pack total
+            y += 2
+            doc.setFont('helvetica', 'bold')
+            doc.text('TOTAL REFERENCIAL:', 120, y)
+            doc.text(formatCurrency(packTotal), 165, y)
+            doc.setFont('helvetica', 'normal')
+
+            y += 8
         }
 
         window.open(doc.output('bloburl'), '_blank')
