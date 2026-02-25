@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
     // Consolidar: sumar cantidades por artículo
     const consolidado: Record<string, { nombre: string; rubro: string; cantidad: number; unidad: string }> = {}
     for (const item of items) {
+        const cant = Number(item.cantidad)
+        if (cant <= 0) continue
+
         const key = item.articuloId
         if (!consolidado[key]) {
             consolidado[key] = {
@@ -25,7 +28,7 @@ export async function POST(req: NextRequest) {
                 unidad: item.articulo.unidad,
             }
         }
-        consolidado[key].cantidad += Number(item.cantidad)
+        consolidado[key].cantidad += cant
     }
 
     // Sort by rubro then nombre

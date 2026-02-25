@@ -18,8 +18,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // PUT /api/pedidos/[id]
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
+    const currentPedido = await prisma.pedido.findUnique({ where: { id } })
+    if (!currentPedido) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
     const body = await req.json()
     const { items, notas, estado } = body
+
+    if (currentPedido.estado === 'cerrado' && items) {
+        return NextResponse.json({ error: 'No se pueden modificar los ítems de un pedido cerrado' }, { status: 400 })
+    }
 
     let total: number | undefined
     if (items) {
@@ -60,7 +67,36 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 // DELETE /api/pedidos/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
-    await prisma.pedidoItem.deleteMany({ where: { pedidoId: id } })
-    await prisma.pedido.delete({ where: { id } })
+
+    const currentPedido = await prisma.pedido.findUnique({ where: { id } })
+    if (!currentPedido) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+    await prisma.$transaction(async (tx) => {
+        // Desvincular cualquier pago de Cuenta Corriente del pedido si fue cerrado para que pueda eliminarse sin error
+        await tx.movimientoCC.updateMany({
+            where: { pedidoId: id },
+            data: { pedidoId: null, descripcion: `(Huerfano) Pedido #${currentPedido.numero} eliminado` }
+        })
+
+        // Si estaba cerrado, revertir el saldo del cliente para evitar desbalance
+        if (currentPedido.estado === 'cerrado') {
+            await tx.cliente.update({
+                where: { id: currentPedido.clienteId },
+                data: { saldo: { decrement: Number(currentPedido.total) } }
+            })
+            await tx.movimientoCC.create({
+                data: {
+                    clienteId: currentPedido.clienteId,
+                    tipo: 'reversa',
+                    monto: Number(currentPedido.total),
+                    descripcion: `Reversión por eliminación de Pedido #${currentPedido.numero}`,
+                }
+            })
+        }
+
+        await tx.pedidoItem.deleteMany({ where: { pedidoId: id } })
+        await tx.pedido.delete({ where: { id } })
+    })
+
     return NextResponse.json({ ok: true })
 }
