@@ -85,7 +85,7 @@ function NuevoPedidoPage() {
         if (existing) {
             setItems(items.map(i => i.articuloId === articulo.id ? { ...i, cantidad: i.cantidad + 1 } : i))
         } else {
-            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, precioBase, estadoItem: 'Entregado', descuento: 0 }])
+            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, precioBase, estadoItem: '', descuento: 0 }])
         }
         setArticuloQuery('')
         setArticulos([])
@@ -275,7 +275,8 @@ function NuevoPedidoPage() {
                                                         <div style={{ fontWeight: 600, fontSize: 13 }}>{item.nombre}</div>
                                                         {/* Mostrar en mobile los campos extra */}
                                                         <div className="show-mobile-flex" style={{ display: 'none', gap: 6, marginTop: 4 }}>
-                                                            <select value={item.estadoItem} onChange={e => updateEstadoItem(item.articuloId, e.target.value)} style={{ padding: '2px 4px', fontSize: 11, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4 }}>
+                                                            <select value={item.estadoItem || ''} onChange={e => updateEstadoItem(item.articuloId, e.target.value)} style={{ padding: '2px 4px', fontSize: 11, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4 }}>
+                                                                <option value="">—</option>
                                                                 <option value="Entregado">Entregado</option>
                                                                 <option value="Cambio">Cambio</option>
                                                                 <option value="Devolución">Devolución</option>
@@ -314,7 +315,8 @@ function NuevoPedidoPage() {
                                                         />
                                                     </td>
                                                     <td className="hide-mobile">
-                                                        <select value={item.estadoItem} onChange={e => updateEstadoItem(item.articuloId, e.target.value)} style={{ width: '100%', padding: '4px', fontSize: 12 }}>
+                                                        <select value={item.estadoItem || ''} onChange={e => updateEstadoItem(item.articuloId, e.target.value)} style={{ width: '100%', padding: '4px', fontSize: 12 }}>
+                                                            <option value="">—</option>
                                                             <option value="Entregado">Entregado</option>
                                                             <option value="Cambio">Cambio</option>
                                                             <option value="Devolución">Devolución</option>

@@ -21,6 +21,8 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
     const [pedido, setPedido] = useState(initialPedido)
     const [editing, setEditing] = useState(false)
     const [items, setItems] = useState(initialPedido.items.map(i => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' })))
+    const [estadoPedido, setEstadoPedido] = useState(initialPedido.estado)
+    const [notasPedido, setNotasPedido] = useState(initialPedido.notas || '')
     const [loading, setLoading] = useState(false)
     const [articuloQuery, setArticuloQuery] = useState('')
     const [articuloResults, setArticuloResults] = useState<Articulo[]>([])
@@ -60,11 +62,14 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 items: items.map(i => ({ articuloId: i.articuloId, cantidad: Number(i.cantidad), precioUnitario: Number(i.precioUnitario), descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || null })),
-                estado: pedido.estado === 'pendiente' ? 'armado' : pedido.estado,
+                estado: estadoPedido,
+                notas: notasPedido,
             }),
         })
         const updated = await res.json()
         setPedido(updated)
+        setEstadoPedido(updated.estado)
+        setNotasPedido(updated.notas || '')
         setItems(updated.items.map((i: Item) => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' })))
         setLoading(false); setEditing(false)
     }
@@ -312,7 +317,12 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                         <>
                             {!editing && <button onClick={() => setEditing(true)} className="btn btn-secondary">{IconEdit} Editar</button>}
                             {editing && <button onClick={handleSave} disabled={loading} className="btn btn-primary">{IconSave} {loading ? 'Guardando...' : 'Guardar'}</button>}
-                            {editing && <button onClick={() => { setEditing(false); setItems(initialPedido.items.map(i => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' }))) }} className="btn btn-secondary">Cancelar</button>}
+                            {editing && <button onClick={() => {
+                                setEditing(false)
+                                setEstadoPedido(pedido.estado)
+                                setNotasPedido(pedido.notas || '')
+                                setItems(initialPedido.items.map(i => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' })))
+                            }} className="btn btn-secondary">Cancelar</button>}
                             <button onClick={handleCerrar} disabled={loading} className="btn btn-success">{IconCheck} Cerrar</button>
                         </>
                     )}
@@ -332,11 +342,21 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                     </div>
                     <div className="card">
                         <div className="card-header">Estado</div>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                            <span className={`badge ${badge.className}`}>{badge.label}</span>
-                            <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDateTime(pedido.createdAt)}</span>
-                            {pedido.cerradoAt && <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Cerrado: {formatDateTime(pedido.cerradoAt)}</span>}
-                        </div>
+                        {editing ? (
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                                <select value={estadoPedido} onChange={e => setEstadoPedido(e.target.value)} style={{ padding: '6px 12px', fontSize: 13, fontWeight: 600 }}>
+                                    <option value="pendiente">Pendiente de Armado</option>
+                                    <option value="armado">Armado</option>
+                                </select>
+                                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDateTime(pedido.createdAt)}</span>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span className={`badge ${badge.className}`}>{badge.label}</span>
+                                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{formatDateTime(pedido.createdAt)}</span>
+                                {pedido.cerradoAt && <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Cerrado: {formatDateTime(pedido.cerradoAt)}</span>}
+                            </div>
+                        )}
                         {saldoAnterior !== 0 && (
                             <div className={`alert alert-${saldoAnterior > 0 ? 'red' : 'green'}`} style={{ fontSize: 13, marginTop: 8 }}>
                                 Saldo al momento: <strong>{getSaldoStatus(saldoAnterior).label}</strong>
@@ -400,7 +420,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                                         <td>
                                             {editing ? (
                                                 <select
-                                                    value={item.estadoItem || 'Entregado'}
+                                                    value={item.estadoItem || ''}
                                                     onChange={e => {
                                                         const nuevoEstado = e.target.value
                                                         let nuevaCant = item.cantidad
@@ -410,6 +430,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                                                     }}
                                                     style={{ width: 95, padding: '4px 6px', fontSize: 12, border: '1px solid var(--border)' }}
                                                 >
+                                                    <option value="">—</option>
                                                     <option value="Entregado">Entregado</option>
                                                     <option value="Cambio">Cambio</option>
                                                     <option value="Devolución">Devolución</option>
@@ -471,10 +492,19 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                     </table>
                 </div>
 
-                {pedido.notas && (
+                {(pedido.notas || editing) && (
                     <div className="card" style={{ marginTop: 16 }}>
                         <div className="card-header">Notas</div>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{pedido.notas}</p>
+                        {editing ? (
+                            <textarea
+                                value={notasPedido}
+                                onChange={e => setNotasPedido(e.target.value)}
+                                style={{ width: '100%', padding: '10px', fontSize: 14, minHeight: 80, border: '1px solid var(--border)', borderRadius: 6 }}
+                                placeholder="Observaciones extras (opcional)..."
+                            />
+                        ) : (
+                            <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{pedido.notas}</p>
+                        )}
                     </div>
                 )}
             </div>
