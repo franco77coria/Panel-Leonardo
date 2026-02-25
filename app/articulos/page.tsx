@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { formatCurrency, daysSince, formatDate } from '@/lib/utils'
 import { ExportArticulosPDF, PrintButton } from '@/components/ExportPDF'
 import { ArticuloPrecioEditor } from '@/components/ArticuloPrecioEditor'
+import { ArticuloNombreEditor } from '@/components/ArticuloNombreEditor'
 
 interface Rubro { id: string; nombre: string }
 interface Proveedor { id: string; nombre: string }
@@ -192,7 +193,7 @@ export default function ArticulosPage() {
                                         const dias = daysSince(a.fechaPrecio)
                                         return (
                                             <tr key={a.id}>
-                                                <td><strong>{a.nombre}</strong></td>
+                                                <td><ArticuloNombreEditor articuloId={a.id} nombre={a.nombre} onUpdate={fetchAll} /></td>
                                                 <td style={{ color: 'var(--text-muted)' }}>{a.proveedor?.nombre || '-'}</td>
                                                 <td>
                                                     <ArticuloPrecioEditor articuloId={a.id} precio={Number(a.precio)} onUpdate={fetchAll} />

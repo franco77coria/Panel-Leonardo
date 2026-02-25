@@ -391,22 +391,42 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                                     <tr key={item.id}>
                                         <td>
                                             {editing ? (
-                                                <input type="number" step="0.001" min="0" value={item.cantidad}
+                                                <input type="number" step="0.001" value={item.cantidad}
                                                     onChange={e => setItems(items.map(i => i.id === item.id ? { ...i, cantidad: parseFloat(e.target.value) || 0 } : i))}
-                                                    style={{ width: 55, padding: '4px 6px', fontWeight: 700, textAlign: 'center' }} />
-                                            ) : <strong>{Number(item.cantidad)}</strong>}
+                                                    style={{ width: 55, padding: '4px 6px', fontWeight: 700, textAlign: 'center', color: item.cantidad < 0 ? 'var(--red)' : 'inherit' }} />
+                                            ) : <strong style={{ color: item.cantidad < 0 ? 'var(--red)' : 'inherit' }}>{Number(item.cantidad)}</strong>}
                                         </td>
                                         <td><strong>{item.articulo.nombre}</strong></td>
                                         <td>
                                             {editing ? (
-                                                <input type="text" value={item.estadoItem} placeholder="—"
-                                                    onChange={e => setItems(items.map(i => i.id === item.id ? { ...i, estadoItem: e.target.value } : i))}
-                                                    style={{ width: 85, padding: '4px 6px', fontSize: 12 }} />
+                                                <select
+                                                    value={item.estadoItem || 'Entregado'}
+                                                    onChange={e => {
+                                                        const nuevoEstado = e.target.value
+                                                        let nuevaCant = item.cantidad
+                                                        if (nuevoEstado === 'Devolución' && nuevaCant > 0) nuevaCant = -nuevaCant
+                                                        if (nuevoEstado !== 'Devolución' && nuevaCant < 0) nuevaCant = Math.abs(nuevaCant)
+                                                        setItems(items.map(i => i.id === item.id ? { ...i, estadoItem: nuevoEstado, cantidad: nuevaCant } : i))
+                                                    }}
+                                                    style={{ width: 95, padding: '4px 6px', fontSize: 12, border: '1px solid var(--border)' }}
+                                                >
+                                                    <option value="Entregado">Entregado</option>
+                                                    <option value="Cambio">Cambio</option>
+                                                    <option value="Devolución">Devolución</option>
+                                                </select>
                                             ) : (
                                                 item.estadoItem ? <span className="badge badge-gray" style={{ fontSize: 11 }}>{item.estadoItem}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>
                                             )}
                                         </td>
-                                        <td className="hide-mobile">{formatCurrency(precio)}</td>
+                                        <td className="hide-mobile">
+                                            {editing ? (
+                                                <input type="number" step="0.01" value={item.precioUnitario}
+                                                    onChange={e => setItems(items.map(i => i.id === item.id ? { ...i, precioUnitario: parseFloat(e.target.value) || 0 } : i))}
+                                                    style={{ width: 75, padding: '4px 6px', fontSize: 12, textAlign: 'right' }} />
+                                            ) : (
+                                                formatCurrency(precio)
+                                            )}
+                                        </td>
                                         <td>
                                             {editing ? (
                                                 <input type="number" step="1" min="0" max="100" value={item.descuento}

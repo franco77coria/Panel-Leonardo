@@ -7,7 +7,7 @@ import { formatCurrency, getSaldoStatus } from '@/lib/utils'
 
 interface Articulo { id: string; nombre: string; precio: number; unidad: string; permiteDecimal: boolean }
 interface Cliente { id: string; nombre: string; direccion?: string; telefono?: string; saldo: number }
-interface Item { articuloId: string; nombre: string; cantidad: number; precioUnitario: number }
+interface Item { articuloId: string; nombre: string; cantidad: number; precioUnitario: number; estadoItem?: string; descuento?: number }
 interface Frecuente { articulo: Articulo; vecesComprado: number }
 
 export default function NuevoPedidoPageWrapper() {
@@ -36,6 +36,7 @@ function NuevoPedidoPage() {
     const [frecuentes, setFrecuentes] = useState<Frecuente[]>([])
     const [estado, setEstado] = useState('pendiente')
     const [notas, setNotas] = useState('')
+    const [listaPrecio, setListaPrecio] = useState<number>(1.20) // Lista 1 = 20%
     const [loading, setLoading] = useState(false)
 
     useEffect(() => {
@@ -73,12 +74,17 @@ function NuevoPedidoPage() {
         loadFrecuentes(c.id)
     }
 
+    const getPrecioLista = (precioCosto: number) => {
+        return Number((precioCosto * listaPrecio).toFixed(2))
+    }
+
     const addItem = (articulo: Articulo) => {
+        const precioAplicado = getPrecioLista(Number(articulo.precio))
         const existing = items.find(i => i.articuloId === articulo.id)
         if (existing) {
             setItems(items.map(i => i.articuloId === articulo.id ? { ...i, cantidad: i.cantidad + 1 } : i))
         } else {
-            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: Number(articulo.precio) }])
+            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, estadoItem: 'Entregado', descuento: 0 }])
         }
         setArticuloQuery('')
         setArticulos([])
@@ -90,11 +96,37 @@ function NuevoPedidoPage() {
         setItems(items.map(i => i.articuloId === articuloId ? { ...i, cantidad: value } : i))
     }
 
+    const updatePrecio = (articuloId: string, rawValue: string) => {
+        const value = parseFloat(rawValue) || 0
+        setItems(items.map(i => i.articuloId === articuloId ? { ...i, precioUnitario: value } : i))
+    }
+
+    const updateEstadoItem = (articuloId: string, estado: string) => {
+        setItems(items.map(i => {
+            if (i.articuloId === articuloId) {
+                // Automáticamente convertir cantidad a negativo si es devolución
+                let nuevaCant = i.cantidad
+                if (estado === 'Devolución' && nuevaCant > 0) nuevaCant = -nuevaCant
+                if (estado !== 'Devolución' && nuevaCant < 0) nuevaCant = Math.abs(nuevaCant)
+                return { ...i, estadoItem: estado, cantidad: nuevaCant }
+            }
+            return i
+        }))
+    }
+
+    const updateDescuento = (articuloId: string, rawValue: string) => {
+        const value = parseFloat(rawValue) || 0
+        setItems(items.map(i => i.articuloId === articuloId ? { ...i, descuento: value } : i))
+    }
+
     const removeItem = (articuloId: string) => {
         setItems(items.filter(i => i.articuloId !== articuloId))
     }
 
-    const total = items.reduce((s, i) => s + i.cantidad * i.precioUnitario, 0)
+    const total = items.reduce((s, i) => {
+        const desc = i.descuento || 0
+        return s + i.cantidad * i.precioUnitario * (1 - desc / 100)
+    }, 0)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -171,6 +203,20 @@ function NuevoPedidoPage() {
                             )}
                         </div>
 
+                        {/* List Selector */}
+                        <div className="card" style={{ padding: 16 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                    Lista de Venta
+                                </div>
+                                <select value={listaPrecio} onChange={e => setListaPrecio(Number(e.target.value))} style={{ flex: 1, padding: '8px 12px', fontSize: 15, fontWeight: 600 }}>
+                                    <option value={1.20}>Lista 1 (+20% sobre costo)</option>
+                                    <option value={1.25}>Lista 2 (+25% sobre costo)</option>
+                                    <option value={1.35}>Lista 3 (+35% sobre costo)</option>
+                                </select>
+                            </div>
+                        </div>
+
                         {/* Article search */}
                         <div className="card">
                             <div className="card-header">Agregar Artículos</div>
@@ -202,39 +248,82 @@ function NuevoPedidoPage() {
                                     <thead>
                                         <tr>
                                             <th>Artículo</th>
-                                            <th style={{ width: 100 }}>Cant.</th>
-                                            <th className="hide-mobile">Precio</th>
+                                            <th style={{ width: 80 }}>Cant.</th>
+                                            <th className="hide-mobile">Precio ($)</th>
+                                            <th className="hide-mobile" style={{ width: 60 }}>% Dto</th>
+                                            <th className="hide-mobile" style={{ width: 130 }}>Estado</th>
                                             <th>Subtotal</th>
                                             <th style={{ width: 40 }}></th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {items.map(item => (
-                                            <tr key={item.articuloId}>
-                                                <td><strong>{item.nombre}</strong></td>
-                                                <td>
-                                                    <input
-                                                        type="number"
-                                                        step="0.001"
-                                                        min="0"
-                                                        value={item.cantidad}
-                                                        onChange={e => updateCantidad(item.articuloId, e.target.value)}
-                                                        style={{ width: 80, padding: '5px 8px', fontWeight: 700, textAlign: 'center' }}
-                                                    />
-                                                </td>
-                                                <td className="hide-mobile">{formatCurrency(item.precioUnitario)}</td>
-                                                <td><strong>{formatCurrency(item.cantidad * item.precioUnitario)}</strong></td>
-                                                <td>
-                                                    <button onClick={() => removeItem(item.articuloId)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {items.map(item => {
+                                            const subtotalNumber = item.cantidad * item.precioUnitario * (1 - (item.descuento || 0) / 100)
+                                            return (
+                                                <tr key={item.articuloId}>
+                                                    <td>
+                                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{item.nombre}</div>
+                                                        {/* Mostrar en mobile los campos extra */}
+                                                        <div className="show-mobile-flex" style={{ display: 'none', gap: 6, marginTop: 4 }}>
+                                                            <select value={item.estadoItem} onChange={e => updateEstadoItem(item.articuloId, e.target.value)} style={{ padding: '2px 4px', fontSize: 11, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4 }}>
+                                                                <option value="Entregado">Entregado</option>
+                                                                <option value="Cambio">Cambio</option>
+                                                                <option value="Devolución">Devolución</option>
+                                                            </select>
+                                                            {item.precioUnitario > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>M: ${item.precioUnitario}</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number"
+                                                            step="0.001"
+                                                            value={item.cantidad}
+                                                            onChange={e => updateCantidad(item.articuloId, e.target.value)}
+                                                            style={{ width: 70, padding: '5px 8px', fontWeight: 700, textAlign: 'center', color: item.cantidad < 0 ? 'var(--red)' : 'inherit' }}
+                                                            title="Usar número negativo para devoluciones"
+                                                        />
+                                                    </td>
+                                                    <td className="hide-mobile">
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={item.precioUnitario}
+                                                            onChange={e => updatePrecio(item.articuloId, e.target.value)}
+                                                            style={{ width: 80, padding: '5px 8px', fontWeight: 600, border: '1px solid var(--border)' }}
+                                                        />
+                                                    </td>
+                                                    <td className="hide-mobile">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            value={item.descuento || ''}
+                                                            onChange={e => updateDescuento(item.articuloId, e.target.value)}
+                                                            placeholder="0"
+                                                            style={{ width: 50, padding: '5px', textAlign: 'center', border: '1px solid var(--border)' }}
+                                                        />
+                                                    </td>
+                                                    <td className="hide-mobile">
+                                                        <select value={item.estadoItem} onChange={e => updateEstadoItem(item.articuloId, e.target.value)} style={{ width: '100%', padding: '4px', fontSize: 12 }}>
+                                                            <option value="Entregado">Entregado</option>
+                                                            <option value="Cambio">Cambio</option>
+                                                            <option value="Devolución">Devolución</option>
+                                                        </select>
+                                                    </td>
+                                                    <td><strong style={{ color: subtotalNumber < 0 ? 'var(--red)' : 'inherit' }}>{formatCurrency(subtotalNumber)}</strong></td>
+                                                    <td>
+                                                        <button onClick={() => removeItem(item.articuloId)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700 }}>TOTAL</td>
+                                            <td colSpan={5} className="hide-mobile" style={{ textAlign: 'right', fontWeight: 700 }}>TOTAL</td>
+                                            <td colSpan={2} className="show-mobile-table-cell" style={{ display: 'none', textAlign: 'right', fontWeight: 700 }}>TOTAL</td>
                                             <td><strong style={{ fontSize: 18, color: 'var(--primary)' }}>{formatCurrency(total)}</strong></td>
                                             <td></td>
                                         </tr>
