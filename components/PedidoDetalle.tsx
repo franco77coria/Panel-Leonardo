@@ -284,7 +284,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
             doc.text(`Notas: ${pedido.notas}`, margin, y)
         }
 
-        doc.save(`presupuesto-${String(pedido.numero).padStart(6, '0')}-${pedido.cliente.nombre.replace(/\s+/g, '-')}.pdf`)
+        window.open(doc.output('bloburl'), '_blank')
     }
 
     // ==================== SVG ICONS ====================

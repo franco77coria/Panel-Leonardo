@@ -76,7 +76,7 @@ export function ExportPedidosPDF({ pedidos }: { pedidos: PedidoRow[] }) {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
         doc.text(`TOTAL GENERAL: ${formatCurrency(totalGeneral)}`, 190, y, { align: 'right' })
 
-        doc.save(`pedidos-${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.pdf`)
+        window.open(doc.output('bloburl'), '_blank')
     }
 
     return (
@@ -124,7 +124,7 @@ export function ExportClientesPDF({ clientes }: { clientes: ClienteRow[] }) {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
         doc.text(`Deuda total de clientes: ${formatCurrency(totalDeuda)}`, 190, y, { align: 'right' })
 
-        doc.save(`clientes-${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.pdf`)
+        window.open(doc.output('bloburl'), '_blank')
     }
 
     return (
@@ -168,7 +168,7 @@ export function ExportArticulosPDF({ articulos }: { articulos: ArticuloRow[] }) 
             y += 6
         }
 
-        doc.save(`lista-precios-${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.pdf`)
+        window.open(doc.output('bloburl'), '_blank')
     }
 
     return (
@@ -225,7 +225,7 @@ export function ExportAllPacksPDF({ packs }: { packs: PackRow[] }) {
             y += 6
         }
 
-        doc.save(`packs-catalogo-${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.pdf`)
+        window.open(doc.output('bloburl'), '_blank')
     }
 
     return (
