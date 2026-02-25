@@ -313,10 +313,10 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                             {!editing && <button onClick={() => setEditing(true)} className="btn btn-secondary">{IconEdit} Editar</button>}
                             {editing && <button onClick={handleSave} disabled={loading} className="btn btn-primary">{IconSave} {loading ? 'Guardando...' : 'Guardar'}</button>}
                             {editing && <button onClick={() => { setEditing(false); setItems(initialPedido.items.map(i => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' }))) }} className="btn btn-secondary">Cancelar</button>}
-                            <button onClick={handleCerrar} disabled={loading} className="btn btn-danger">{IconCheck} Cerrar</button>
+                            <button onClick={handleCerrar} disabled={loading} className="btn btn-success">{IconCheck} Cerrar</button>
                         </>
                     )}
-                    {pedido.estado === 'pendiente' && <button onClick={handleEliminar} className="btn btn-ghost" style={{ color: 'var(--red)' }}>{IconTrash}</button>}
+                    <button onClick={handleEliminar} className="btn btn-danger">{IconTrash} Eliminar</button>
                 </div>
             </div>
 
