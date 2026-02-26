@@ -37,6 +37,11 @@ export default function ArticulosPage() {
         fetch('/api/proveedores').then(r => r.json()).then(setProveedores).catch(() => { })
     }, [])
 
+    // Deduplicar proveedores por nombre (evita duplicados en DB)
+    const proveedoresUnicos = proveedores.filter((p, i, arr) =>
+        arr.findIndex(x => x.nombre.toLowerCase().trim() === p.nombre.toLowerCase().trim()) === i
+    )
+
     const fetchAll = async () => {
         setLoading(true)
         const params = new URLSearchParams()
@@ -167,7 +172,7 @@ export default function ArticulosPage() {
                                 <div style={{ display: 'flex', gap: 6 }}>
                                     <select style={{ flex: 1 }} value={nuevoForm.proveedorId} onChange={e => setNuevoForm({ ...nuevoForm, proveedorId: e.target.value })}>
                                         <option value="">Sin proveedor</option>
-                                        {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                                        {proveedoresUnicos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                                     </select>
                                     <button onClick={() => setQuickAdd({ tipo: 'proveedor', nombre: '' })} className="btn btn-secondary" style={{ padding: '0 10px' }} title="Agregar nuevo proveedor">+</button>
                                 </div>
@@ -234,7 +239,7 @@ export default function ArticulosPage() {
                                 <label>{masivo.tipo === 'rubro' ? 'Rubro' : 'Proveedor'}</label>
                                 <select value={masivo.id} onChange={e => setMasivo({ ...masivo, id: e.target.value })} style={{ width: 180 }}>
                                     <option value="">Seleccionar...</option>
-                                    {(masivo.tipo === 'rubro' ? rubros : proveedores).map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                                    {(masivo.tipo === 'rubro' ? rubros : proveedoresUnicos).map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                                 </select>
                             </div>
                             <div className="form-group">
@@ -257,7 +262,7 @@ export default function ArticulosPage() {
                     </select>
                     <select value={proveedorId} onChange={e => setProveedorId(e.target.value)}>
                         <option value="">Todos los proveedores</option>
-                        {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        {proveedoresUnicos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                     </select>
                     <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>{articulos.length} artículos</span>
                 </div>
@@ -287,7 +292,7 @@ export default function ArticulosPage() {
                                                 <td>
                                                     <ArticuloProveedorEditor
                                                         articuloId={a.id}
-                                                        proveedores={proveedores}
+                                                        proveedores={proveedoresUnicos}
                                                         proveedorId={a.proveedor?.id}
                                                         proveedorNombre={a.proveedor?.nombre}
                                                         onUpdate={fetchAll}

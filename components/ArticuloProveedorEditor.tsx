@@ -19,6 +19,10 @@ export function ArticuloProveedorEditor({ articuloId, proveedores, proveedorId, 
     const [editing, setEditing] = useState(false)
     const [saving, setSaving] = useState(false)
 
+    const proveedoresUnicos = proveedores.filter((p, i, arr) =>
+        arr.findIndex(x => x.nombre.toLowerCase().trim() === p.nombre.toLowerCase().trim()) === i
+    )
+
     const save = async (newProveedorId: string) => {
         setSaving(true)
         await fetch(`/api/articulos/${articuloId}`, {
@@ -44,7 +48,7 @@ export function ArticuloProveedorEditor({ articuloId, proveedores, proveedorId, 
                     style={{ padding: '3px 6px', fontSize: 13, border: '1px solid var(--primary-light)', borderRadius: 4, width: 150 }}
                 >
                     <option value="">Sin proveedor</option>
-                    {proveedores.map(p => (
+                    {proveedoresUnicos.map(p => (
                         <option key={p.id} value={p.id}>{p.nombre}</option>
                     ))}
                 </select>
