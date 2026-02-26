@@ -18,3 +18,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json(proveedor)
 }
+
+// DELETE /api/proveedores/[id] - eliminar proveedor (los artículos quedan sin proveedor)
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
+
+    await prisma.$transaction([
+        prisma.articulo.updateMany({ where: { proveedorId: id }, data: { proveedorId: null } }),
+        prisma.proveedor.delete({ where: { id } }),
+    ])
+
+    return NextResponse.json({ ok: true })
+}
