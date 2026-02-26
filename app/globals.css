@@ -365,10 +365,11 @@ a {
 }
 
 .kpi-value {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
   line-height: 1.1;
+  word-break: break-word;
 }
 
 .kpi-sub {
@@ -708,7 +709,8 @@ textarea {
   }
 
   .kpi-value {
-    font-size: 22px;
+    font-size: 20px;
+    word-break: break-word;
   }
 
   .two-col {

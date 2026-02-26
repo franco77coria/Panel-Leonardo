@@ -12,7 +12,8 @@ export function formatCurrency(amount: number | string | null | undefined): stri
     return new Intl.NumberFormat('es-AR', {
         style: 'currency',
         currency: 'ARS',
-        minimumFractionDigits: 2,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
     }).format(num)
 }
 
