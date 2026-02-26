@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatCurrency, daysSince, formatDate } from '@/lib/utils'
 import { ExportArticulosPDF, PrintButton } from '@/components/ExportPDF'
+import { ExportArticulosCSV } from '@/components/ExportCSV'
 import { ArticuloPrecioEditor } from '@/components/ArticuloPrecioEditor'
 import { ArticuloNombreEditor } from '@/components/ArticuloNombreEditor'
+import { ArticuloProveedorEditor } from '@/components/ArticuloProveedorEditor'
 
 interface Rubro { id: string; nombre: string }
 interface Proveedor { id: string; nombre: string }
@@ -23,6 +25,9 @@ export default function ArticulosPage() {
     const [masivo, setMasivo] = useState({ tipo: 'rubro', id: '', porcentaje: '' })
     const [showNuevo, setShowNuevo] = useState(false)
     const [nuevoForm, setNuevoForm] = useState({ nombre: '', rubroId: '', proveedorId: '', costo: '', precio: '', unidad: 'unidad', permiteDecimal: false })
+
+    // Quick Add Modals inline
+    const [quickAdd, setQuickAdd] = useState<{ tipo: 'rubro' | 'proveedor' | null, nombre: '' }>({ tipo: null, nombre: '' })
     const [page, setPage] = useState(1)
     const PER_PAGE = 20
 
@@ -53,9 +58,62 @@ export default function ArticulosPage() {
     }
 
     const handleNuevo = async () => {
-        if (!nuevoForm.nombre || !nuevoForm.precio) return alert('Nombre y precio son requeridos')
-        await fetch('/api/articulos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...nuevoForm, precio: parseFloat(nuevoForm.precio), costo: parseFloat(nuevoForm.costo) || 0 }) })
-        setShowNuevo(false); setNuevoForm({ nombre: '', rubroId: '', proveedorId: '', costo: '', precio: '', unidad: 'unidad', permiteDecimal: false }); fetchAll()
+        if (!nuevoForm.nombre.trim()) return alert('El nombre del artículo es requerido')
+
+        try {
+            const res = await fetch('/api/articulos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...nuevoForm,
+                    precio: parseFloat(nuevoForm.precio) || 0,
+                    costo: parseFloat(nuevoForm.costo) || 0
+                })
+            })
+
+            if (!res.ok) {
+                let message = 'No se pudo guardar el artículo.'
+                try {
+                    const data = await res.json()
+                    if (data?.error) {
+                        message += `\n\nDetalle: ${data.error}`
+                    }
+                } catch { }
+                alert(message)
+                return
+            }
+
+            // Limpiamos filtros para asegurarnos de ver el nuevo artículo
+            setQ('')
+            setRubroId('')
+            setProveedorId('')
+
+            setShowNuevo(false);
+            setNuevoForm({ nombre: '', rubroId: '', proveedorId: '', costo: '', precio: '', unidad: 'unidad', permiteDecimal: false });
+            fetchAll()
+        } catch {
+            alert('Ocurrió un error al guardar el artículo. Verificá la conexión e intentá nuevamente.')
+        }
+    }
+
+    const handleQuickAdd = async () => {
+        if (!quickAdd.nombre) return
+        const endpoint = quickAdd.tipo === 'rubro' ? '/api/rubros' : '/api/proveedores'
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre: quickAdd.nombre })
+        })
+        const data = await res.json()
+
+        if (quickAdd.tipo === 'rubro') {
+            setRubros([...rubros, data])
+            setNuevoForm({ ...nuevoForm, rubroId: data.id })
+        } else {
+            setProveedores([...proveedores, data])
+            setNuevoForm({ ...nuevoForm, proveedorId: data.id })
+        }
+        setQuickAdd({ tipo: null, nombre: '' })
     }
 
     const handleDelete = async (id: string, nombre: string) => {
@@ -70,6 +128,14 @@ export default function ArticulosPage() {
                 <h1 className="page-title">Artículos</h1>
                 <div style={{ display: 'flex', gap: 10 }}>
                     <ExportArticulosPDF articulos={articulos.map(a => ({ nombre: a.nombre, proveedor: a.proveedor?.nombre || '', precio: Number(a.precio), unidad: a.unidad }))} />
+                    <ExportArticulosCSV articulos={articulos.map(a => ({
+                        nombre: a.nombre,
+                        proveedor: a.proveedor?.nombre || '',
+                        rubro: a.rubro?.nombre || '',
+                        unidad: a.unidad,
+                        precio: Number(a.precio),
+                        fecha: a.fechaPrecio,
+                    }))} />
                     <PrintButton />
                     <button onClick={() => setShowMasivo(!showMasivo)} className="btn btn-secondary">Actualización Masiva</button>
                     <button onClick={() => setShowNuevo(!showNuevo)} className="btn btn-primary">+ Nuevo Artículo</button>
@@ -87,25 +153,32 @@ export default function ArticulosPage() {
                             </div>
                             <div className="form-group">
                                 <label>Rubro</label>
-                                <select value={nuevoForm.rubroId} onChange={e => setNuevoForm({ ...nuevoForm, rubroId: e.target.value })}>
-                                    <option value="">Sin rubro</option>
-                                    {rubros.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-                                </select>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <select style={{ flex: 1 }} value={nuevoForm.rubroId} onChange={e => setNuevoForm({ ...nuevoForm, rubroId: e.target.value })}>
+                                        <option value="">Sin rubro</option>
+                                        {rubros.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                                    </select>
+                                    <button onClick={() => setQuickAdd({ tipo: 'rubro', nombre: '' })} className="btn btn-secondary" style={{ padding: '0 10px' }} title="Agregar nuevo rubro">+</button>
+                                </div>
                             </div>
                             <div className="form-group">
                                 <label>Proveedor</label>
-                                <select value={nuevoForm.proveedorId} onChange={e => setNuevoForm({ ...nuevoForm, proveedorId: e.target.value })}>
-                                    <option value="">Sin proveedor</option>
-                                    {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                                </select>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <select style={{ flex: 1 }} value={nuevoForm.proveedorId} onChange={e => setNuevoForm({ ...nuevoForm, proveedorId: e.target.value })}>
+                                        <option value="">Sin proveedor</option>
+                                        {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                                    </select>
+                                    <button onClick={() => setQuickAdd({ tipo: 'proveedor', nombre: '' })} className="btn btn-secondary" style={{ padding: '0 10px' }} title="Agregar nuevo proveedor">+</button>
+                                </div>
                             </div>
                             <div className="form-group">
-                                <label>Costo ($)</label>
-                                <input type="number" step="0.01" value={nuevoForm.costo} onChange={e => setNuevoForm({ ...nuevoForm, costo: e.target.value })} placeholder="0.00" />
+                                <label>Costo de Compra ($)</label>
+                                <input type="number" step="0.01" value={nuevoForm.costo} onChange={e => setNuevoForm({ ...nuevoForm, costo: e.target.value })} placeholder="Ej: 1500" />
                             </div>
                             <div className="form-group">
-                                <label>Precio Venta ($) *</label>
-                                <input type="number" step="0.01" value={nuevoForm.precio} onChange={e => setNuevoForm({ ...nuevoForm, precio: e.target.value })} placeholder="0.00" />
+                                <label>Precio de Venta ($)</label>
+                                <input type="number" step="0.01" value={nuevoForm.precio} onChange={e => setNuevoForm({ ...nuevoForm, precio: e.target.value })} placeholder="(Opcional)" />
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Dejalo vacío si vas a manejar listas de precios (Lista 1, 2 o 3) a partir del costo.</span>
                             </div>
                             <div className="form-group">
                                 <label>Unidad</label>
@@ -123,6 +196,22 @@ export default function ArticulosPage() {
                                     <button onClick={() => setShowNuevo(false)} className="btn btn-secondary">Cancelar</button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {quickAdd.tipo && (
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+                    <div className="card" style={{ width: '100%', maxWidth: 400 }}>
+                        <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Nuevo {quickAdd.tipo === 'rubro' ? 'Rubro' : 'Proveedor'}</h3>
+                        <div className="form-group">
+                            <label>Nombre</label>
+                            <input value={quickAdd.nombre} onChange={e => setQuickAdd({ ...quickAdd, nombre: e.target.value as any })} autoFocus onKeyDown={e => e.key === 'Enter' && handleQuickAdd()} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                            <button onClick={handleQuickAdd} className="btn btn-primary" style={{ flex: 1 }}>Guardar</button>
+                            <button onClick={() => setQuickAdd({ tipo: null, nombre: '' })} className="btn btn-secondary" style={{ flex: 1 }}>Cancelar</button>
                         </div>
                     </div>
                 </div>
@@ -182,7 +271,7 @@ export default function ArticulosPage() {
                                     <tr>
                                         <th>Artículo</th>
                                         <th>Proveedor</th>
-                                        <th>Precio</th>
+                                        <th>Precio venta</th>
                                         <th>Unidad</th>
                                         <th>Últ. Actualización</th>
                                         <th></th>
@@ -194,7 +283,15 @@ export default function ArticulosPage() {
                                         return (
                                             <tr key={a.id}>
                                                 <td><ArticuloNombreEditor articuloId={a.id} nombre={a.nombre} onUpdate={fetchAll} /></td>
-                                                <td style={{ color: 'var(--text-muted)' }}>{a.proveedor?.nombre || '-'}</td>
+                                                <td>
+                                                    <ArticuloProveedorEditor
+                                                        articuloId={a.id}
+                                                        proveedores={proveedores}
+                                                        proveedorId={a.proveedor?.id}
+                                                        proveedorNombre={a.proveedor?.nombre}
+                                                        onUpdate={fetchAll}
+                                                    />
+                                                </td>
                                                 <td>
                                                     <ArticuloPrecioEditor articuloId={a.id} precio={Number(a.precio)} onUpdate={fetchAll} />
                                                 </td>

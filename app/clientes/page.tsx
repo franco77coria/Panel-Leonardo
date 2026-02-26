@@ -3,24 +3,50 @@ import { formatCurrency, formatDate, getSaldoStatus } from '@/lib/utils'
 import Link from 'next/link'
 import { ExportClientesPDF, PrintButton } from '@/components/ExportPDF'
 import { ClienteInlineEditor } from '@/components/ClienteInlineEditor'
+import { ExportDeudoresCSV } from '@/components/ExportCSV'
 
 export const dynamic = 'force-dynamic'
 
-export default async function ClientesPage() {
+export default async function ClientesPage({ searchParams }: { searchParams: Promise<{ ciudad?: string }> }) {
+    const { ciudad = '' } = await searchParams
+
     const clientes = await prisma.cliente.findMany({
-        where: { activo: true },
+        where: {
+            activo: true,
+            ...(ciudad && { localidad: { contains: ciudad, mode: 'insensitive' } }),
+        },
         orderBy: { nombre: 'asc' },
     })
+
+    const deudores = clientes.filter(c => Number(c.saldo) > 0)
+    const ciudades = Array.from(
+        new Set([
+            'Las Heras',
+            'Marcos Paz',
+            'Mariano Acosta',
+            ...clientes.map(c => ((c as any).localidad as string | undefined) || '').filter(Boolean),
+        ])
+    ).sort((a, b) => a.localeCompare(b, 'es'))
 
     return (
         <>
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Clientes</h1>
-                    <p className="page-subtitle">{clientes.length} clientes activos</p>
+                    <p className="page-subtitle">{clientes.length} clientes activos {ciudad && <>en <strong>{ciudad}</strong></>}</p>
                 </div>
                 <div className="page-actions">
                     <ExportClientesPDF clientes={clientes.map(c => ({ nombre: c.nombre, direccion: (c as any).localidad || c.direccion || '', telefono: c.telefono || '', saldo: Number(c.saldo), fecha: c.createdAt.toISOString() }))} />
+                    <ExportDeudoresCSV
+                        deudores={deudores.map(c => ({
+                            nombre: c.nombre,
+                            ciudad: (c as any).localidad || '',
+                            direccion: c.direccion || '',
+                            telefono: c.telefono || '',
+                            saldo: Number(c.saldo),
+                            fechaAlta: c.createdAt.toISOString(),
+                        }))}
+                    />
                     <PrintButton />
                     <Link href="/clientes/nuevo" className="btn btn-primary">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
@@ -30,6 +56,20 @@ export default async function ClientesPage() {
             </div>
 
             <div className="page-body">
+                <form method="GET" style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 13, color: 'var(--text-muted)' }}>Filtrar por ciudad:</label>
+                    <select name="ciudad" defaultValue={ciudad} style={{ minWidth: 160 }}>
+                        <option value="">Todas</option>
+                        {ciudades.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
+                    </select>
+                    <button type="submit" className="btn btn-secondary btn-sm">Aplicar</button>
+                    {ciudad && (
+                        <Link href="/clientes" className="btn btn-ghost btn-sm">Limpiar</Link>
+                    )}
+                </form>
+
                 <div className="kpi-grid" style={{ marginBottom: 20 }}>
                     <div className="kpi-card">
                         <div className="kpi-label">Total Clientes</div>
@@ -56,7 +96,7 @@ export default async function ClientesPage() {
                             <thead>
                                 <tr>
                                     <th>Cliente</th>
-                                    <th className="hide-mobile">Localidad</th>
+                                    <th className="hide-mobile">Ciudad</th>
                                     <th className="hide-mobile">Domicilio</th>
                                     <th className="hide-mobile">Teléfono</th>
                                     <th>Saldo</th>

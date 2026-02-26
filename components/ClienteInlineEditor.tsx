@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 interface Props {
     clienteId: string
-    field: 'localidad' | 'direccion' | 'telefono'
+    field: 'nombre' | 'localidad' | 'direccion' | 'telefono'
     value: string
     placeholder?: string
 }

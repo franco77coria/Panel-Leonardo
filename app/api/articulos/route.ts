@@ -27,7 +27,16 @@ export async function POST(req: NextRequest) {
     if (!nombre) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })
 
     const articulo = await prisma.articulo.create({
-        data: { nombre, proveedorId, rubroId, costo, precio, unidad: unidad || 'unidad', permiteDecimal: permiteDecimal || false, fechaPrecio: new Date() },
+        data: {
+            nombre,
+            proveedorId: proveedorId || undefined,
+            rubroId: rubroId || undefined,
+            costo,
+            precio,
+            unidad: unidad || 'unidad',
+            permiteDecimal: permiteDecimal || false,
+            fechaPrecio: new Date()
+        },
     })
     return NextResponse.json(articulo, { status: 201 })
 }

@@ -9,6 +9,8 @@ const nav = [
     { href: '/', label: 'Dashboard', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg> },
     { href: '/clientes', label: 'Clientes', icon: <IconUsers size={20} /> },
     { href: '/articulos', label: 'Artículos', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg> },
+    { href: '/rubros', label: 'Rubros', icon: <IconPackage size={20} /> },
+    { href: '/proveedores', label: 'Proveedores', icon: <IconGift size={20} /> },
     { href: '/pedidos', label: 'Pedidos', icon: <IconClipboard size={20} /> },
     { href: '/logistica', label: 'Logística', icon: <IconPackage size={20} /> },
     { href: '/packs', label: 'Packs', icon: <IconGift size={20} /> },
