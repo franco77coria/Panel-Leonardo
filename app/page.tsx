@@ -15,6 +15,7 @@ async function getDashboardData() {
     pedidosPendientes,
     clientesConDeuda,
     ultimosPedidos,
+    clientesSaldos,
   ] = await Promise.all([
     prisma.pedido.findMany({ where: { createdAt: { gte: today, lt: tomorrow } } }),
     prisma.pedido.count({ where: { estado: 'pendiente' } }),
@@ -24,11 +25,23 @@ async function getDashboardData() {
       orderBy: { createdAt: 'desc' },
       include: { cliente: { select: { nombre: true } } },
     }),
+    prisma.cliente.findMany({
+      where: { activo: true, saldo: { not: 0 } },
+      select: { saldo: true },
+    }),
   ])
 
   const totalHoy = pedidosHoy.reduce((sum, p) => sum + Number(p.total), 0)
 
-  return { pedidosHoy: pedidosHoy.length, totalHoy, pedidosPendientes, clientesConDeuda, ultimosPedidos }
+  let totalDeuda = 0
+  let totalAFavor = 0
+  for (const c of clientesSaldos) {
+    const s = Number(c.saldo)
+    if (s > 0) totalDeuda += s
+    else if (s < 0) totalAFavor += Math.abs(s)
+  }
+
+  return { pedidosHoy: pedidosHoy.length, totalHoy, pedidosPendientes, clientesConDeuda, ultimosPedidos, totalDeuda, totalAFavor }
 }
 
 export default async function DashboardPage() {
@@ -39,6 +52,8 @@ export default async function DashboardPage() {
     { label: 'Total a cobrar hoy', value: formatCurrency(data.totalHoy), sub: 'Suma de pedidos de hoy', color: 'var(--green)' },
     { label: 'Pendientes de armado', value: data.pedidosPendientes, sub: 'Pedidos sin armar', color: 'var(--yellow)' },
     { label: 'Clientes con deuda', value: data.clientesConDeuda, sub: 'Cuentas corrientes activas', color: 'var(--red)' },
+    { label: 'Deuda Total', value: formatCurrency(data.totalDeuda), sub: 'Suma de saldos deudores', color: 'var(--red)' },
+    { label: 'Total a Favor', value: formatCurrency(data.totalAFavor), sub: 'Suma de saldos a favor (crédito)', color: 'var(--green)' },
   ]
 
   return (
