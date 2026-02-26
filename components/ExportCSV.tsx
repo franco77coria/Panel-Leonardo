@@ -104,3 +104,31 @@ export function ExportDeudoresCSV({ deudores }: { deudores: DeudorCSVRow[] }) {
     )
 }
 
+export function ExportAFavorCSV({ clientes }: { clientes: DeudorCSVRow[] }) {
+    const handleExport = () => {
+        if (!clientes.length) {
+            alert('No hay clientes con saldo a favor para exportar.')
+            return
+        }
+
+        const header = ['Cliente', 'Ciudad', 'Dirección', 'Teléfono', 'Saldo', 'Cliente desde']
+        const rows = clientes.map(d => [
+            d.nombre,
+            d.ciudad || '',
+            d.direccion || '',
+            d.telefono || '',
+            formatCurrency(d.saldo),
+            formatDate(d.fechaAlta),
+        ])
+
+        downloadCSV('saldo-a-favor.csv', [header, ...rows])
+    }
+
+    return (
+        <button onClick={handleExport} className="btn btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 4h16v4H4z" /><path d="M4 12h16v8H4z" /><path d="M8 12V4" /><path d="M16 20v-8" /></svg>
+            Exportar a Favor
+        </button>
+    )
+}
+

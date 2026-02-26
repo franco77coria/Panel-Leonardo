@@ -3,7 +3,7 @@ import { formatCurrency, formatDate, getSaldoStatus } from '@/lib/utils'
 import Link from 'next/link'
 import { ExportClientesPDF, PrintButton } from '@/components/ExportPDF'
 import { ClienteInlineEditor } from '@/components/ClienteInlineEditor'
-import { ExportDeudoresCSV } from '@/components/ExportCSV'
+import { ExportDeudoresCSV, ExportAFavorCSV } from '@/components/ExportCSV'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +19,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
     })
 
     const deudores = clientes.filter(c => Number(c.saldo) > 0)
+    const aFavor = clientes.filter(c => Number(c.saldo) < 0)
     const ciudades = Array.from(
         new Set([
             'Las Heras',
@@ -36,9 +37,19 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                     <p className="page-subtitle">{clientes.length} clientes activos {ciudad && <>en <strong>{ciudad}</strong></>}</p>
                 </div>
                 <div className="page-actions">
-                    <ExportClientesPDF clientes={clientes.map(c => ({ nombre: c.nombre, direccion: (c as any).localidad || c.direccion || '', telefono: c.telefono || '', saldo: Number(c.saldo), fecha: c.createdAt.toISOString() }))} />
+                    <ExportClientesPDF clientes={clientes.map(c => ({ nombre: c.nombre, ciudad: (c as any).localidad || '', direccion: c.direccion || '', telefono: c.telefono || '', saldo: Number(c.saldo), fecha: c.createdAt.toISOString() }))} />
                     <ExportDeudoresCSV
                         deudores={deudores.map(c => ({
+                            nombre: c.nombre,
+                            ciudad: (c as any).localidad || '',
+                            direccion: c.direccion || '',
+                            telefono: c.telefono || '',
+                            saldo: Number(c.saldo),
+                            fechaAlta: c.createdAt.toISOString(),
+                        }))}
+                    />
+                    <ExportAFavorCSV
+                        clientes={aFavor.map(c => ({
                             nombre: c.nombre,
                             ciudad: (c as any).localidad || '',
                             direccion: c.direccion || '',

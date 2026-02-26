@@ -83,14 +83,15 @@ export default function ArticulosPage() {
                 return
             }
 
-            // Limpiamos filtros para asegurarnos de ver el nuevo artículo
+            // Limpiamos filtros y recargamos sin depender del estado (evita que el nuevo artículo no aparezca)
             setQ('')
             setRubroId('')
             setProveedorId('')
+            setShowNuevo(false)
+            setNuevoForm({ nombre: '', rubroId: '', proveedorId: '', costo: '', precio: '', unidad: 'unidad', permiteDecimal: false })
 
-            setShowNuevo(false);
-            setNuevoForm({ nombre: '', rubroId: '', proveedorId: '', costo: '', precio: '', unidad: 'unidad', permiteDecimal: false });
-            fetchAll()
+            const resList = await fetch('/api/articulos')
+            setArticulos(await resList.json())
         } catch {
             alert('Ocurrió un error al guardar el artículo. Verificá la conexión e intentá nuevamente.')
         }
@@ -178,7 +179,7 @@ export default function ArticulosPage() {
                             <div className="form-group">
                                 <label>Precio de Venta ($)</label>
                                 <input type="number" step="0.01" value={nuevoForm.precio} onChange={e => setNuevoForm({ ...nuevoForm, precio: e.target.value })} placeholder="(Opcional)" />
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Dejalo vacío si vas a manejar listas de precios (Lista 1, 2 o 3) a partir del costo.</span>
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Precio sugerido de venta. Si usás listas (Lista 1, 2 o 3) calculadas desde el costo, dejalo en 0.</span>
                             </div>
                             <div className="form-group">
                                 <label>Unidad</label>

@@ -44,6 +44,22 @@ export default function ProveedoresPage() {
         fetchProveedores()
     }
 
+    const handleEditar = async (id: string, nombreActual: string) => {
+        const nuevo = prompt('Nuevo nombre del proveedor:', nombreActual)
+        if (nuevo === null || nuevo.trim() === '' || nuevo === nombreActual) return
+        const res = await fetch(`/api/proveedores/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre: nuevo.trim() }),
+        })
+        if (!res.ok) {
+            const data = await res.json().catch(() => null)
+            alert(data?.error || 'No se pudo actualizar el proveedor.')
+            return
+        }
+        fetchProveedores()
+    }
+
     return (
         <>
             <div className="page-header">
@@ -86,12 +102,21 @@ export default function ProveedoresPage() {
                             <thead>
                                 <tr>
                                     <th>Nombre</th>
+                                    <th style={{ width: 100 }}>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {proveedores.map(p => (
                                     <tr key={p.id}>
                                         <td>{p.nombre}</td>
+                                        <td>
+                                            <button
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={() => handleEditar(p.id, p.nombre)}
+                                            >
+                                                Editar
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
