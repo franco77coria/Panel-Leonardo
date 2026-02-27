@@ -27,6 +27,8 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
     const [articuloQuery, setArticuloQuery] = useState('')
     const [articuloResults, setArticuloResults] = useState<Articulo[]>([])
     const [listaPrecio, setListaPrecio] = useState<number>(1.20)
+    const [editingPriceItemId, setEditingPriceItemId] = useState<string | null>(null)
+    const [editingPriceValue, setEditingPriceValue] = useState<string>('')
 
     const getPrecioBase = (a: Articulo) =>
         Number(a.costo) > 0 ? Number(a.costo) : Number(a.precio)
@@ -89,6 +91,33 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         if (!confirm('¿Eliminar este pedido?')) return
         await fetch(`/api/pedidos/${pedido.id}`, { method: 'DELETE' })
         router.push('/pedidos')
+    }
+
+    const handleInlinePriceSave = async (itemId: string) => {
+        const newPrice = parseFloat(editingPriceValue)
+        if (isNaN(newPrice)) { setEditingPriceItemId(null); return }
+
+        const originalItem = items.find(i => i.id === itemId)
+        if (!originalItem || Number(originalItem.precioUnitario) === newPrice) { setEditingPriceItemId(null); return }
+
+        const updatedItems = items.map(i => i.id === itemId ? { ...i, precioUnitario: newPrice } : i)
+        setItems(updatedItems)
+        setEditingPriceItemId(null)
+
+        setLoading(true)
+        const res = await fetch(`/api/pedidos/${pedido.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: updatedItems.map(i => ({ articuloId: i.articuloId, cantidad: Number(i.cantidad), precioUnitario: Number(i.precioUnitario), descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || null })),
+                estado: pedido.estado,
+                notas: pedido.notas,
+            }),
+        })
+        const updated = await res.json()
+        setPedido(updated)
+        setItems(updated.items.map((i: Item) => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' })))
+        setLoading(false)
     }
 
     // ==================== PDF BOLETA ====================
@@ -454,8 +483,48 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                                                 <input type="number" step="0.01" value={item.precioUnitario}
                                                     onChange={e => setItems(items.map(i => i.id === item.id ? { ...i, precioUnitario: parseFloat(e.target.value) || 0 } : i))}
                                                     style={{ width: 75, padding: '4px 6px', fontSize: 12, textAlign: 'right' }} />
+                                            ) : editingPriceItemId === item.id ? (
+                                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                                    <span style={{ color: 'var(--text-muted)' }}>$</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editingPriceValue}
+                                                        onChange={e => setEditingPriceValue(e.target.value)}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleInlinePriceSave(item.id)
+                                                            if (e.key === 'Escape') setEditingPriceItemId(null)
+                                                        }}
+                                                        onBlur={() => handleInlinePriceSave(item.id)}
+                                                        autoFocus
+                                                        style={{ width: 80, padding: '3px 6px', fontSize: 13, border: '1px solid var(--primary-light)', borderRadius: 4, fontWeight: 'bold' }}
+                                                    />
+                                                </div>
                                             ) : (
-                                                formatCurrency(precio)
+                                                <span
+                                                    onClick={() => {
+                                                        if (pedido.estado !== 'cerrado') {
+                                                            setEditingPriceItemId(item.id)
+                                                            setEditingPriceValue(precio.toString())
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        cursor: pedido.estado !== 'cerrado' ? 'pointer' : 'default',
+                                                        color: pedido.estado !== 'cerrado' ? 'var(--primary)' : 'inherit',
+                                                        fontWeight: 600,
+                                                        borderBottom: pedido.estado !== 'cerrado' ? '1px dashed var(--primary-light)' : 'none',
+                                                        paddingBottom: 1,
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: 4,
+                                                    }}
+                                                    title={pedido.estado !== 'cerrado' ? 'Click para editar precio' : undefined}
+                                                >
+                                                    {formatCurrency(precio)}
+                                                    {pedido.estado !== 'cerrado' && (
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ opacity: 0.4 }}><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                                                    )}
+                                                </span>
                                             )}
                                         </td>
                                         <td>

@@ -5,12 +5,13 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import jsPDF from 'jspdf'
 
 interface Pedido { id: string; numero: number; estado: string; total: number; createdAt: string; cliente: { nombre: string }; items: { id: string }[] }
-interface Consolidado { nombre: string; rubro: string; cantidad: number; unidad: string }
+interface ConsolidadoItem { nombre: string; cantidad: number }
+interface ConsolidadoGroup { cliente: string; items: ConsolidadoItem[] }
 
 export default function LogisticaPage() {
     const [pedidos, setPedidos] = useState<Pedido[]>([])
     const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
-    const [consolidado, setConsolidado] = useState<Consolidado[]>([])
+    const [consolidado, setConsolidado] = useState<ConsolidadoGroup[]>([])
     const [loading, setLoading] = useState(false)
     const [generado, setGenerado] = useState(false)
 
@@ -61,21 +62,20 @@ export default function LogisticaPage() {
         doc.text(`Pedidos: ${seleccionados.size}`, 130, y); y += 8
         doc.line(20, y, 190, y); y += 8
 
-        // Por rubro
-        let currentRubro = ''
-        for (const item of consolidado) {
-            if (item.rubro !== currentRubro) {
-                if (y > 250) { doc.addPage(); y = 20 }
-                currentRubro = item.rubro
-                y += 4
-                doc.setFont('helvetica', 'bold'); doc.setFontSize(14)
-                doc.text(`▪ ${currentRubro}`, 20, y); y += 7
-            }
+        // Por cliente
+        for (const group of consolidado) {
+            if (y > 250) { doc.addPage(); y = 20 }
+
+            y += 4
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(14)
+            doc.text(group.cliente, 20, y); y += 7
+
             doc.setFont('helvetica', 'normal'); doc.setFontSize(12)
-            const cantStr = `${item.cantidad} ${item.unidad}`
-            doc.text(`   ${item.nombre}`, 20, y)
-            doc.text(cantStr, 170, y, { align: 'right' }); y += 7
-            if (y > 270) { doc.addPage(); y = 20 }
+            for (const item of group.items) {
+                if (y > 270) { doc.addPage(); y = 20 }
+                doc.text(`   ${item.cantidad}  ${item.nombre}`, 20, y)
+                y += 7
+            }
         }
 
         doc.save(`lista-armado-${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.pdf`)
@@ -135,27 +135,28 @@ export default function LogisticaPage() {
                                 Seleccioná los pedidos y hacé click en <strong>Generar Lista</strong>
                             </div>
                         ) : (
-                            <div className="table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Artículo</th>
-                                            <th>Rubro</th>
-                                            <th style={{ textAlign: 'right' }}>Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {consolidado.map((item, i) => (
-                                            <tr key={i}>
-                                                <td><strong>{item.nombre}</strong></td>
-                                                <td><span className="badge badge-blue">{item.rubro}</span></td>
-                                                <td style={{ textAlign: 'right' }}>
-                                                    <strong style={{ fontSize: 17, color: 'var(--primary)' }}>{item.cantidad} {item.unidad}</strong>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                {consolidado.map((group, gi) => (
+                                    <div key={gi}>
+                                        <div style={{ fontWeight: 800, fontSize: 15, padding: '10px 16px', background: 'var(--primary)', color: 'white', borderRadius: 'var(--radius) var(--radius) 0 0' }}>
+                                            {group.cliente}
+                                        </div>
+                                        <div className="table-container" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+                                            <table>
+                                                <tbody>
+                                                    {group.items.map((item, ii) => (
+                                                        <tr key={ii}>
+                                                            <td style={{ width: 60, textAlign: 'center' }}>
+                                                                <strong style={{ fontSize: 17, color: 'var(--primary)' }}>{item.cantidad}</strong>
+                                                            </td>
+                                                            <td><strong>{item.nombre}</strong></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>

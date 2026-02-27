@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     await Promise.all(articulos.map(a =>
         prisma.articulo.update({
             where: { id: a.id },
-            data: { precio: Math.round(Number(a.precio) * factor * 100) / 100, fechaPrecio: new Date() },
+            data: { costo: Math.round(Number(a.costo) * factor * 100) / 100, precio: Math.round(Number(a.precio) * factor * 100) / 100, fechaPrecio: new Date() },
         })
     ))
 

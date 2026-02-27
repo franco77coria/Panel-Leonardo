@@ -7,6 +7,7 @@ import { ExportArticulosPDF, PrintButton } from '@/components/ExportPDF'
 import { ExportArticulosCSV } from '@/components/ExportCSV'
 import { ArticuloPrecioEditor } from '@/components/ArticuloPrecioEditor'
 import { ArticuloNombreEditor } from '@/components/ArticuloNombreEditor'
+import { ArticuloCostoEditor } from '@/components/ArticuloCostoEditor'
 import { ArticuloProveedorEditor } from '@/components/ArticuloProveedorEditor'
 
 interface Rubro { id: string; nombre: string }
@@ -277,6 +278,7 @@ export default function ArticulosPage() {
                                     <tr>
                                         <th>Artículo</th>
                                         <th>Proveedor</th>
+                                        <th>Costo</th>
                                         <th>Precio venta</th>
                                         <th>Unidad</th>
                                         <th>Últ. Actualización</th>
@@ -297,6 +299,9 @@ export default function ArticulosPage() {
                                                         proveedorNombre={a.proveedor?.nombre}
                                                         onUpdate={fetchAll}
                                                     />
+                                                </td>
+                                                <td>
+                                                    <ArticuloCostoEditor articuloId={a.id} costo={Number(a.costo)} onUpdate={fetchAll} />
                                                 </td>
                                                 <td>
                                                     <ArticuloPrecioEditor articuloId={a.id} precio={Number(a.precio)} onUpdate={fetchAll} />
