@@ -100,20 +100,16 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
             qrDataUrl = await QRCode.toDataURL(WA_LINK, { width: 200, margin: 1, color: { dark: '#1a2332', light: '#ffffff' } })
         } catch { /* QR error */ }
 
-        // ---------- HEADER: Logo + Info + QR ----------
-        try {
-            doc.addImage('/logo.png', 'JPEG', margin, y, 40, 20)
-        } catch { /* logo no disponible */ }
-
+        // ---------- HEADER: Info + QR ----------
         // PAPELERA - grande y bold
         doc.setFontSize(26); doc.setFont('helvetica', 'bold')
-        doc.text('Papelera', margin + 44, y + 8)
+        doc.text('Papelera', margin + 3, y + 8)
 
-        // Leo + teléfono con icono WA
+        // Leo + teléfono
         doc.setFontSize(14); doc.setFont('helvetica', 'normal')
-        doc.text('Leo', margin + 44, y + 16)
+        doc.text('Leo', margin + 3, y + 16)
         doc.setFontSize(10)
-        doc.text(TELEFONO_LEO, margin + 56, y + 16)
+        doc.text(TELEFONO_LEO, margin + 15, y + 16)
 
         // QR a la derecha
         if (qrDataUrl) {
