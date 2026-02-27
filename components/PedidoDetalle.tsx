@@ -251,7 +251,8 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         }
 
         // ---------- FOOTER: Subtotal / Saldo / TOTAL ----------
-        y += 2
+        // Si hay espacio, empujar el footer al fondo de la hoja
+        y = Math.max(y + 2, 260)
         const footerX = margin + totalColW - 60
 
         // Subtotal general
