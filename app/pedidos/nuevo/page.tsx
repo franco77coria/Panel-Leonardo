@@ -7,7 +7,7 @@ import { formatCurrency, getSaldoStatus } from '@/lib/utils'
 
 interface Articulo { id: string; nombre: string; costo: number; precio: number; unidad: string; permiteDecimal: boolean }
 interface Cliente { id: string; nombre: string; direccion?: string; telefono?: string; saldo: number }
-interface Item { articuloId: string; nombre: string; cantidad: number; precioUnitario: number; precioBase: number; estadoItem?: string; descuento?: number }
+interface Item { articuloId: string; nombre: string; cantidad: number; precioUnitario: number; precioBase: number; lista: number; estadoItem?: string; descuento?: number }
 interface Frecuente { articulo: Articulo; vecesComprado: number }
 
 export default function NuevoPedidoPageWrapper() {
@@ -85,7 +85,7 @@ function NuevoPedidoPage() {
         if (existing) {
             setItems(items.map(i => i.articuloId === articulo.id ? { ...i, cantidad: i.cantidad + 1 } : i))
         } else {
-            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, precioBase, estadoItem: '', descuento: 0 }])
+            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, precioBase, lista: listaPrecio, estadoItem: '', descuento: 0 }])
         }
         setArticuloQuery('')
         setArticulos([])
@@ -94,6 +94,13 @@ function NuevoPedidoPage() {
 
     const handleListaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         setListaPrecio(Number(e.target.value))
+    }
+
+    const updateLista = (articuloId: string, newLista: number) => {
+        setItems(items.map(i => i.articuloId === articuloId
+            ? { ...i, lista: newLista, precioUnitario: Number((i.precioBase * newLista).toFixed(2)) }
+            : i
+        ))
     }
 
     const updateCantidad = (articuloId: string, rawValue: string) => {
@@ -212,7 +219,7 @@ function NuevoPedidoPage() {
                         <div className="card" style={{ padding: 16 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                                 <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                    Lista de Venta
+                                    Lista por defecto
                                 </div>
                                 <select value={listaPrecio} onChange={handleListaChange} style={{ flex: 1, padding: '8px 12px', fontSize: 15, fontWeight: 600 }}>
                                     <option value={1.20}>Lista 1 (+20% sobre costo)</option>
@@ -254,7 +261,7 @@ function NuevoPedidoPage() {
                                         <tr>
                                             <th>Artículo</th>
                                             <th style={{ width: 80 }}>Cant.</th>
-                                            <th className="hide-mobile">Precio ($)</th>
+                                            <th className="hide-mobile">Lista / Precio</th>
                                             <th className="hide-mobile" style={{ width: 60 }}>% Dto</th>
                                             <th className="hide-mobile" style={{ width: 130 }}>Estado</th>
                                             <th>Subtotal</th>
@@ -290,13 +297,23 @@ function NuevoPedidoPage() {
                                                         />
                                                     </td>
                                                     <td className="hide-mobile">
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={item.precioUnitario}
-                                                            onChange={e => updatePrecio(item.articuloId, e.target.value)}
-                                                            style={{ width: 80, padding: '5px 8px', fontWeight: 600, border: '1px solid var(--border)' }}
-                                                        />
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                                            <select
+                                                                value={item.lista}
+                                                                onChange={e => updateLista(item.articuloId, Number(e.target.value))}
+                                                                style={{ fontSize: 11, padding: '2px 4px', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text-muted)', width: 88 }}>
+                                                                <option value={1.20}>Lista 1 (+20%)</option>
+                                                                <option value={1.25}>Lista 2 (+25%)</option>
+                                                                <option value={1.35}>Lista 3 (+35%)</option>
+                                                            </select>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={item.precioUnitario}
+                                                                onChange={e => updatePrecio(item.articuloId, e.target.value)}
+                                                                style={{ width: 88, padding: '5px 8px', fontWeight: 600, border: '1px solid var(--border)' }}
+                                                            />
+                                                        </div>
                                                     </td>
                                                     <td className="hide-mobile">
                                                         <input
