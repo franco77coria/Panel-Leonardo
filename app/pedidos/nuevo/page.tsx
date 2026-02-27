@@ -93,12 +93,7 @@ function NuevoPedidoPage() {
     }
 
     const handleListaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newLista = Number(e.target.value)
-        setListaPrecio(newLista)
-        setItems(items.map(i => ({
-            ...i,
-            precioUnitario: Number((i.precioBase * newLista).toFixed(2))
-        })))
+        setListaPrecio(Number(e.target.value))
     }
 
     const updateCantidad = (articuloId: string, rawValue: string) => {

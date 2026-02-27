@@ -11,7 +11,7 @@ import QRCode from 'qrcode'
 const TELEFONO_LEO = '11 3808-8724'
 const WA_LINK = 'https://wa.me/5491138088724'
 
-interface Articulo { id: string; nombre: string; precio: number; rubro?: { nombre: string } }
+interface Articulo { id: string; nombre: string; precio: number; costo?: number; rubro?: { nombre: string } }
 interface Item { id: string; articuloId: string; articulo: Articulo; cantidad: number; precioUnitario: number; descuento: number; estadoItem?: string | null }
 interface Cliente { id: string; nombre: string; direccion?: string; telefono?: string; saldo: number }
 interface Pedido { id: string; numero: number; estado: string; total: number; notas?: string; saldoAnterior: number; createdAt: string; cerradoAt?: string; cliente: Cliente; items: Item[] }
@@ -26,6 +26,10 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
     const [loading, setLoading] = useState(false)
     const [articuloQuery, setArticuloQuery] = useState('')
     const [articuloResults, setArticuloResults] = useState<Articulo[]>([])
+    const [listaPrecio, setListaPrecio] = useState<number>(1.20)
+
+    const getPrecioBase = (a: Articulo) =>
+        Number(a.costo) > 0 ? Number(a.costo) : Number(a.precio)
 
     const calcSubtotal = (item: typeof items[0]) => {
         const precio = Number(item.precioUnitario)
@@ -50,7 +54,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         if (exists) {
             setItems(items.map(i => i.articuloId === a.id ? { ...i, cantidad: Number(i.cantidad) + 1 } : i))
         } else {
-            setItems([...items, { id: `new-${a.id}`, articuloId: a.id, articulo: a, cantidad: 1, precioUnitario: Number(a.precio), descuento: 0, estadoItem: '' }])
+            setItems([...items, { id: `new-${a.id}`, articuloId: a.id, articulo: a, cantidad: 1, precioUnitario: Number((getPrecioBase(a) * listaPrecio).toFixed(2)), descuento: 0, estadoItem: '' }])
         }
         setArticuloQuery(''); setArticuloResults([])
     }
@@ -365,6 +369,15 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                 {editing && (
                     <div className="card" style={{ marginBottom: 16 }}>
                         <div className="card-header">Agregar artículos</div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                            <label style={{ fontSize: 13, whiteSpace: 'nowrap' }}>Lista de precios:</label>
+                            <select value={listaPrecio} onChange={e => setListaPrecio(Number(e.target.value))}
+                                style={{ fontSize: 13, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4 }}>
+                                <option value={1.20}>Lista 1 (+20% sobre costo)</option>
+                                <option value={1.25}>Lista 2 (+25% sobre costo)</option>
+                                <option value={1.35}>Lista 3 (+35% sobre costo)</option>
+                            </select>
+                        </div>
                         <div style={{ position: 'relative' }}>
                             <input type="text" placeholder="Buscar artículo..." value={articuloQuery}
                                 onChange={e => { setArticuloQuery(e.target.value); searchArticulos(e.target.value) }} />
