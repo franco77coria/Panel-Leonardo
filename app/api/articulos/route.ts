@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
         },
         include: { rubro: true, proveedor: true },
         orderBy: { nombre: 'asc' },
+        ...(q && { take: 30 }),
     })
 
     return NextResponse.json(articulos)
