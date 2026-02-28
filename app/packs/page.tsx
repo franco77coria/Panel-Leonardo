@@ -1,130 +1,144 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import jsPDF from 'jspdf'
-import { ExportAllPacksPDF, PrintButton } from '@/components/ExportPDF'
 
-interface Rubro { id: string; nombre: string }
-interface Articulo { id: string; nombre: string; precio: number; unidad: string }
-interface PackItem { id: string; articuloId: string; articulo: Articulo; cantidadSugerida: number }
-interface Pack { id: string; nombre: string; descripcion?: string; rubro?: Rubro; items: PackItem[] }
+interface Articulo { id: string; nombre: string; costo: number; precio: number; rubro?: { nombre: string } }
+interface ListaItem { articuloId: string; nombre: string; rubroNombre: string; precio: number }
 
-export default function PacksPage() {
-    const [packs, setPacks] = useState<Pack[]>([])
-    const [rubros, setRubros] = useState<Rubro[]>([])
-    const [articulos, setArticulos] = useState<Articulo[]>([])
-    const [showNuevo, setShowNuevo] = useState(false)
-    const [packSeleccionado, setPackSeleccionado] = useState<Pack | null>(null)
-    const [nuevoForm, setNuevoForm] = useState({ nombre: '', descripcion: '', rubroId: '' })
-    const [itemsNuevo, setItemsNuevo] = useState<{ articuloId: string; cantidadSugerida: number }[]>([])
+const FACTORES: Record<number, number> = { 1: 1.20, 2: 1.25, 3: 1.35 }
+const getPrecioBase = (a: Articulo) => Number(a.costo) > 0 ? Number(a.costo) : Number(a.precio)
 
-    // Edit state
-    const [editingPack, setEditingPack] = useState(false)
-    const [editForm, setEditForm] = useState({ id: '', nombre: '', descripcion: '', rubroId: '' })
-    const [itemsEdit, setItemsEdit] = useState<{ articuloId: string; cantidadSugerida: number }[]>([])
+export default function ListasPreciosPage() {
+    const [items, setItems] = useState<ListaItem[]>([])
+    const [lista, setLista] = useState<number>(1)
+    const [query, setQuery] = useState('')
+    const [resultados, setResultados] = useState<Articulo[]>([])
+    const [showResults, setShowResults] = useState(false)
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editingValue, setEditingValue] = useState('')
+    const searchRef = useRef<HTMLDivElement>(null)
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    useEffect(() => {
-        fetchPacks()
-        fetch('/api/rubros').then(r => r.json()).then(setRubros).catch(() => { })
-        fetch('/api/articulos').then(r => r.json()).then(setArticulos).catch(() => { })
+    // Almacenar articulos originales para recalcular
+    const articulosCache = useRef<Map<string, Articulo>>(new Map())
+
+    const buscarArticulos = useCallback((q: string) => {
+        if (q.length < 2) { setResultados([]); return }
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        debounceRef.current = setTimeout(async () => {
+            const res = await fetch(`/api/articulos?q=${encodeURIComponent(q)}`)
+            const data = await res.json()
+            setResultados(Array.isArray(data) ? data : [])
+        }, 300)
     }, [])
 
-    const fetchPacks = () => fetch('/api/packs').then(r => r.json()).then(setPacks).catch(() => { })
+    useEffect(() => {
+        buscarArticulos(query)
+    }, [query, buscarArticulos])
 
-    const addItemAlPack = (articuloId: string) => {
-        if (itemsNuevo.find(i => i.articuloId === articuloId)) return
-        setItemsNuevo([...itemsNuevo, { articuloId, cantidadSugerida: 1 }])
+    // Cerrar dropdown al hacer click fuera
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowResults(false)
+        }
+        document.addEventListener('mousedown', handler)
+        return () => document.removeEventListener('mousedown', handler)
+    }, [])
+
+    const agregarArticulo = (a: Articulo) => {
+        if (items.find(i => i.articuloId === a.id)) return
+        articulosCache.current.set(a.id, a)
+        const precio = Math.round(getPrecioBase(a) * FACTORES[lista] * 100) / 100
+        setItems(prev => [...prev, { articuloId: a.id, nombre: a.nombre, rubroNombre: a.rubro?.nombre || '', precio }])
+        setQuery('')
+        setShowResults(false)
     }
 
-    const handleCrearPack = async () => {
-        if (!nuevoForm.nombre) return alert('Ingresá un nombre')
-        await fetch('/api/packs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...nuevoForm, items: itemsNuevo }),
-        })
-        setShowNuevo(false)
-        setNuevoForm({ nombre: '', descripcion: '', rubroId: '' })
-        setItemsNuevo([])
-        fetchPacks()
+    const quitarArticulo = (articuloId: string) => {
+        setItems(prev => prev.filter(i => i.articuloId !== articuloId))
     }
 
-    const handleEliminar = async (id: string, nombre: string) => {
-        if (!confirm(`¿Eliminar el pack "${nombre}"?`)) return
-        await fetch(`/api/packs/${id}`, { method: 'DELETE' })
-        fetchPacks()
-        if (packSeleccionado?.id === id) setPackSeleccionado(null)
+    const cambiarLista = (n: number) => {
+        setLista(n)
+        setItems(prev => prev.map(item => {
+            const art = articulosCache.current.get(item.articuloId)
+            if (!art) return item
+            return { ...item, precio: Math.round(getPrecioBase(art) * FACTORES[n] * 100) / 100 }
+        }))
     }
 
-    const startEditing = (pack: Pack) => {
-        setEditForm({ id: pack.id, nombre: pack.nombre, descripcion: pack.descripcion || '', rubroId: pack.rubro?.id || '' })
-        setItemsEdit(pack.items.map(i => ({ articuloId: i.articuloId, cantidadSugerida: i.cantidadSugerida })))
-        setEditingPack(true)
+    const actualizarPrecios = async () => {
+        if (items.length === 0) return
+        // Re-fetch todos los articulos que tenemos en la lista
+        const ids = items.map(i => i.articuloId)
+        const promises = ids.map(id => fetch(`/api/articulos/${id}`).then(r => r.json()).catch(() => null))
+        const articulos = await Promise.all(promises)
+
+        const newItems: ListaItem[] = []
+        for (let idx = 0; idx < items.length; idx++) {
+            const art = articulos[idx]
+            if (!art) { newItems.push(items[idx]); continue }
+            articulosCache.current.set(art.id, art)
+            newItems.push({
+                ...items[idx],
+                nombre: art.nombre,
+                rubroNombre: art.rubro?.nombre || '',
+                precio: Math.round(getPrecioBase(art) * FACTORES[lista] * 100) / 100,
+            })
+        }
+        setItems(newItems)
     }
 
-    const addItemEdit = (articuloId: string) => {
-        if (itemsEdit.find(i => i.articuloId === articuloId)) return
-        setItemsEdit([...itemsEdit, { articuloId, cantidadSugerida: 1 }])
+    const startEditPrice = (articuloId: string, currentPrice: number) => {
+        setEditingId(articuloId)
+        setEditingValue(String(currentPrice))
     }
 
-    const handleGuardarEdicion = async () => {
-        if (!editForm.nombre) return alert('Ingresá un nombre')
-        const res = await fetch(`/api/packs/${editForm.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...editForm, items: itemsEdit }),
-        })
-        const updated = await res.json()
-        setEditingPack(false)
-        setPackSeleccionado(updated)
-        fetchPacks()
+    const saveEditPrice = () => {
+        if (!editingId) return
+        const num = parseFloat(editingValue)
+        if (!isNaN(num) && num >= 0) {
+            setItems(prev => prev.map(i => i.articuloId === editingId ? { ...i, precio: Math.round(num * 100) / 100 } : i))
+        }
+        setEditingId(null)
     }
 
-    const imprimirPack = (pack: Pack) => {
+    const generarPDF = () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
         let y = 20
 
-        doc.setFontSize(24); doc.setFont('helvetica', 'bold')
-        doc.text(pack.nombre, 105, y, { align: 'center' }); y += 8
+        // Header Papelera Leo
+        doc.setFontSize(26); doc.setFont('helvetica', 'bold')
+        doc.text('PAPELERA LEO', 105, y, { align: 'center' }); y += 8
+        doc.setFontSize(11); doc.setFont('helvetica', 'normal')
+        doc.text('Tel: 11 3808-8724 - WhatsApp', 105, y, { align: 'center' }); y += 10
 
-        if (pack.descripcion) {
-            doc.setFontSize(12); doc.setFont('helvetica', 'normal')
-            doc.text(pack.descripcion, 105, y, { align: 'center' }); y += 6
-        }
-        if (pack.rubro) {
-            doc.setFontSize(11)
-            doc.text(`Rubro: ${pack.rubro.nombre}`, 105, y, { align: 'center' }); y += 6
-        }
+        doc.setFontSize(16); doc.setFont('helvetica', 'bold')
+        doc.text(`Lista de Precios ${lista}`, 105, y, { align: 'center' }); y += 7
 
-        y += 4; doc.line(20, y, 190, y); y += 8
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+        doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 105, y, { align: 'center' }); y += 6
+        doc.line(20, y, 190, y); y += 8
 
-        doc.setFontSize(13); doc.setFont('helvetica', 'bold')
-        doc.text('Artículo', 20, y)
-        doc.text('Cant. Sugerida', 125, y)
-        doc.text('Precio Unit.', 160, y)
-        y += 5; doc.line(20, y, 190, y); y += 7
+        // Table header
+        doc.setFillColor(245, 246, 248)
+        doc.rect(20, y - 4, 170, 8, 'F')
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
+        doc.text('ARTÍCULO', 22, y)
+        doc.text('PRECIO', 175, y, { align: 'right' })
+        y += 6; doc.line(20, y, 190, y); y += 6
 
-        doc.setFont('helvetica', 'normal')
-        let totalPack = 0
-        for (const item of pack.items) {
-            doc.text(item.articulo.nombre.substring(0, 40), 20, y)
-            doc.text(`${item.cantidadSugerida} ${item.articulo.unidad}`, 125, y)
-
-            const precio = Number(item.articulo.precio)
-            const sub = item.cantidadSugerida * precio
-            totalPack += sub
-            doc.text(formatCurrency(sub), 160, y)
-
-            y += 8
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+        for (const item of items) {
             if (y > 270) { doc.addPage(); y = 20 }
+            doc.text(item.nombre.substring(0, 55), 22, y)
+            doc.setFont('helvetica', 'bold')
+            doc.text(formatCurrency(item.precio), 175, y, { align: 'right' })
+            doc.setFont('helvetica', 'normal')
+            y += 7
         }
-
-        y += 2; doc.line(20, y, 190, y); y += 8
-
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(14)
-        doc.text('TOTAL REFERENCIAL:', 100, y)
-        doc.text(formatCurrency(totalPack), 160, y)
 
         window.open(doc.output('bloburl'), '_blank')
     }
@@ -132,184 +146,138 @@ export default function PacksPage() {
     return (
         <>
             <div className="page-header">
-                <h1 className="page-title">Packs</h1>
-                <ExportAllPacksPDF packs={packs.map(p => ({ nombre: p.nombre, descripcion: p.descripcion || undefined, rubro: p.rubro?.nombre || undefined, items: p.items.map(i => ({ nombre: i.articulo.nombre, cantidad: i.cantidadSugerida, unidad: i.articulo.unidad, precio: Number(i.articulo.precio) })) }))} />
-                <PrintButton />
-                <button onClick={() => setShowNuevo(!showNuevo)} className="btn btn-primary">+ Nuevo Pack</button>
+                <h1 className="page-title">Listas de Precios</h1>
+                {items.length > 0 && (
+                    <button onClick={generarPDF} className="btn btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                        Exportar PDF
+                    </button>
+                )}
             </div>
 
-            {showNuevo && (
-                <div className="page-body" style={{ paddingBottom: 0 }}>
-                    <div className="card">
-                        <h2 style={{ fontWeight: 700, marginBottom: 16 }}>Nuevo Pack</h2>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
-                            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                                <label>Nombre del Pack *</label>
-                                <input value={nuevoForm.nombre} onChange={e => setNuevoForm({ ...nuevoForm, nombre: e.target.value })} placeholder="Ej: Pack Carnicería" autoFocus />
-                            </div>
-                            <div className="form-group">
-                                <label>Descripción</label>
-                                <input value={nuevoForm.descripcion} onChange={e => setNuevoForm({ ...nuevoForm, descripcion: e.target.value })} placeholder="Opcional" />
-                            </div>
-                            <div className="form-group">
-                                <label>Rubro</label>
-                                <select value={nuevoForm.rubroId} onChange={e => setNuevoForm({ ...nuevoForm, rubroId: e.target.value })}>
-                                    <option value="">Sin rubro</option>
-                                    {rubros.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div style={{ marginBottom: 14 }}>
-                            <label style={{ fontWeight: 600, fontSize: 14, marginBottom: 8, display: 'block' }}>Agregar artículos al pack:</label>
-                            <select onChange={e => e.target.value && addItemAlPack(e.target.value)} value="" style={{ marginBottom: 10 }}>
-                                <option value="">Seleccionar artículo...</option>
-                                {articulos.filter(a => !itemsNuevo.find(i => i.articuloId === a.id)).map(a => (
-                                    <option key={a.id} value={a.id}>{a.nombre} – {formatCurrency(Number(a.precio))}</option>
-                                ))}
-                            </select>
-                            {itemsNuevo.length > 0 && (
-                                <div className="table-container">
-                                    <table>
-                                        <thead><tr><th>Artículo</th><th>Cantidad Sugerida</th><th></th></tr></thead>
-                                        <tbody>
-                                            {itemsNuevo.map(item => {
-                                                const art = articulos.find(a => a.id === item.articuloId)
-                                                return (
-                                                    <tr key={item.articuloId}>
-                                                        <td><strong>{art?.nombre}</strong></td>
-                                                        <td>
-                                                            <input type="number" step="0.001" min="0" value={item.cantidadSugerida}
-                                                                onChange={e => setItemsNuevo(itemsNuevo.map(i => i.articuloId === item.articuloId ? { ...i, cantidadSugerida: parseFloat(e.target.value) || 1 } : i))}
-                                                                style={{ width: 100, padding: '6px 10px' }} />
-                                                        </td>
-                                                        <td><button onClick={() => setItemsNuevo(itemsNuevo.filter(i => i.articuloId !== item.articuloId))} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button></td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={handleCrearPack} className="btn btn-primary">Crear Pack</button>
-                            <button onClick={() => setShowNuevo(false)} className="btn btn-secondary">Cancelar</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             <div className="page-body">
-                <div style={{ display: 'grid', gridTemplateColumns: packSeleccionado ? '1fr 1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-                    {/* Cards de packs */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16, alignContent: 'start' }}>
-                        {packs.length === 0 ? (
-                            <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                                <p>No hay packs creados.</p>
-                                <button onClick={() => setShowNuevo(true)} className="btn btn-primary">Crear Pack</button>
-                            </div>
-                        ) : packs.map(pack => (
-                            <div key={pack.id} className="card" style={{ cursor: 'pointer', border: packSeleccionado?.id === pack.id ? '2px solid var(--primary-light)' : '1px solid var(--border)' }}
-                                onClick={() => { setPackSeleccionado(packSeleccionado?.id === pack.id ? null : pack); setEditingPack(false) }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                {/* Barra superior: Lista selector + Actualizar */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>Lista:</span>
+                    {[1, 2, 3].map(n => (
+                        <button
+                            key={n}
+                            onClick={() => cambiarLista(n)}
+                            className={lista === n ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                        >
+                            Lista {n} (×{FACTORES[n].toFixed(2)})
+                        </button>
+                    ))}
+                    <div style={{ flex: 1 }} />
+                    {items.length > 0 && (
+                        <>
+                            <button onClick={actualizarPrecios} className="btn btn-secondary btn-sm">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
+                                Actualizar Precios
+                            </button>
+                            <button onClick={() => { setItems([]); articulosCache.current.clear() }} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>
+                                Limpiar Lista
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {/* Buscador de artículos */}
+                <div ref={searchRef} style={{ position: 'relative', marginBottom: 20 }}>
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={e => { setQuery(e.target.value); setShowResults(true) }}
+                        onFocus={() => query.length >= 2 && setShowResults(true)}
+                        placeholder="Buscar artículo para agregar..."
+                        style={{ width: '100%' }}
+                    />
+                    {showResults && resultados.length > 0 && (
+                        <div style={{
+                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                            background: 'white', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                            maxHeight: 300, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }}>
+                            {resultados.map(a => (
+                                <div
+                                    key={a.id}
+                                    onClick={() => agregarArticulo(a)}
+                                    style={{
+                                        padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between',
+                                        borderBottom: '1px solid var(--border)',
+                                        background: items.find(i => i.articuloId === a.id) ? 'var(--bg)' : 'white',
+                                        opacity: items.find(i => i.articuloId === a.id) ? 0.5 : 1,
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
+                                    onMouseLeave={e => (e.currentTarget.style.background = items.find(i => i.articuloId === a.id) ? 'var(--bg)' : 'white')}
+                                >
                                     <div>
-                                        <div style={{ fontWeight: 700, fontSize: 18 }}>{pack.nombre}</div>
-                                        {pack.rubro && <span className="badge badge-blue" style={{ marginTop: 4 }}>{pack.rubro.nombre}</span>}
-                                        {pack.descripcion && <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>{pack.descripcion}</p>}
-                                        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>{pack.items.length} artículo{pack.items.length !== 1 ? 's' : ''}</p>
+                                        <strong>{a.nombre}</strong>
+                                        {a.rubro && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{a.rubro.nombre}</span>}
                                     </div>
+                                    <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                                        {formatCurrency(Math.round(getPrecioBase(a) * FACTORES[lista] * 100) / 100)}
+                                    </span>
                                 </div>
-                                <div style={{ display: 'flex', gap: 8, marginTop: 14 }} onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => imprimirPack(pack)} className="btn btn-secondary btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg> PDF</button>
-                                    <button onClick={() => handleEliminar(pack.id, pack.nombre)} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Detalle del pack seleccionado */}
-                    {packSeleccionado && (
-                        <div>
-                            <div className="table-container">
-                                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <strong>{editingPack ? 'Editando Pack' : packSeleccionado.nombre}</strong>
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        {!editingPack && <button onClick={() => startEditing(packSeleccionado)} className="btn btn-secondary btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg> Editar</button>}
-                                        {!editingPack && <button onClick={() => imprimirPack(packSeleccionado)} className="btn btn-primary btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg> PDF</button>}
-                                        <button onClick={() => setPackSeleccionado(null)} className="btn btn-ghost btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button>
-                                    </div>
-                                </div>
-
-                                {editingPack ? (
-                                    <div style={{ padding: 16 }}>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 16 }}>
-                                            <input className="form-input" value={editForm.nombre} onChange={e => setEditForm({ ...editForm, nombre: e.target.value })} placeholder="Nombre del Pack" />
-                                            <input className="form-input" value={editForm.descripcion} onChange={e => setEditForm({ ...editForm, descripcion: e.target.value })} placeholder="Descripción (opcional)" />
-                                            <select className="form-select" value={editForm.rubroId} onChange={e => setEditForm({ ...editForm, rubroId: e.target.value })}>
-                                                <option value="">Sin rubro</option>
-                                                {rubros.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-                                            </select>
-                                        </div>
-
-                                        <div style={{ marginBottom: 16 }}>
-                                            <select className="form-select" style={{ marginBottom: 10 }} onChange={e => e.target.value && addItemEdit(e.target.value)} value="">
-                                                <option value="">Agregar artículo...</option>
-                                                {articulos.filter(a => !itemsEdit.find(i => i.articuloId === a.id)).map(a => (
-                                                    <option key={a.id} value={a.id}>{a.nombre}</option>
-                                                ))}
-                                            </select>
-
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                                {itemsEdit.map(item => {
-                                                    const art = articulos.find(a => a.id === item.articuloId)
-                                                    return (
-                                                        <div key={item.articuloId} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)', padding: '6px 10px', borderRadius: 6 }}>
-                                                            <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{art?.nombre}</div>
-                                                            <input type="number" step="0.001" min="0" value={item.cantidadSugerida} onChange={e => setItemsEdit(itemsEdit.map(i => i.articuloId === item.articuloId ? { ...i, cantidadSugerida: parseFloat(e.target.value) || 0 } : i))} style={{ width: 70, padding: 4 }} />
-                                                            <span style={{ fontSize: 12, color: 'var(--text-muted)', width: 30 }}>{art?.unidad}</span>
-                                                            <button onClick={() => setItemsEdit(itemsEdit.filter(i => i.articuloId !== item.articuloId))} className="btn btn-ghost btn-sm" style={{ padding: 4, color: 'var(--red)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            <button onClick={handleGuardarEdicion} className="btn btn-primary" style={{ flex: 1 }}>Guardar Cambios</button>
-                                            <button onClick={() => setEditingPack(false)} className="btn btn-secondary">Cancelar</button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <table>
-                                        <thead><tr><th>Artículo</th><th>Cant. Sugerida</th><th>Subtotal Ref.</th></tr></thead>
-                                        <tbody>
-                                            {packSeleccionado.items.map(item => {
-                                                const subtotal = item.cantidadSugerida * Number(item.articulo.precio)
-                                                return (
-                                                    <tr key={item.id}>
-                                                        <td><strong>{item.articulo.nombre}</strong></td>
-                                                        <td>{item.cantidadSugerida} {item.articulo.unidad}</td>
-                                                        <td>{formatCurrency(subtotal)}</td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                        <tfoot>
-                                            <tr>
-                                                <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>TOTAL REFERENCIAL</td>
-                                                <td style={{ fontWeight: 800, color: 'var(--primary)' }}>
-                                                    {formatCurrency(packSeleccionado.items.reduce((sum, item) => sum + (item.cantidadSugerida * Number(item.articulo.precio)), 0))}
-                                                </td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                )}
-                            </div>
+                            ))}
                         </div>
                     )}
                 </div>
+
+                {/* Tabla de items */}
+                {items.length === 0 ? (
+                    <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                        Buscá artículos y agregalos a la lista de precios
+                    </div>
+                ) : (
+                    <div className="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Artículo</th>
+                                    <th>Rubro</th>
+                                    <th style={{ textAlign: 'right' }}>Precio</th>
+                                    <th style={{ width: 40 }}></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map(item => (
+                                    <tr key={item.articuloId}>
+                                        <td><strong>{item.nombre}</strong></td>
+                                        <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{item.rubroNombre || '–'}</td>
+                                        <td style={{ textAlign: 'right' }}>
+                                            {editingId === item.articuloId ? (
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={editingValue}
+                                                    onChange={e => setEditingValue(e.target.value)}
+                                                    onBlur={saveEditPrice}
+                                                    onKeyDown={e => { if (e.key === 'Enter') saveEditPrice(); if (e.key === 'Escape') setEditingId(null) }}
+                                                    autoFocus
+                                                    style={{ width: 100, textAlign: 'right', padding: '4px 8px' }}
+                                                />
+                                            ) : (
+                                                <span
+                                                    onClick={() => startEditPrice(item.articuloId, item.precio)}
+                                                    style={{ cursor: 'pointer', borderBottom: '1px dashed var(--text-muted)', fontWeight: 700, color: 'var(--primary)' }}
+                                                    title="Click para editar"
+                                                >
+                                                    {formatCurrency(item.precio)}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <button onClick={() => quitarArticulo(item.articuloId)} className="btn btn-ghost btn-sm" style={{ padding: 4, color: 'var(--red)' }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </>
     )

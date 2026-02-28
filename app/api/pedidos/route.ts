@@ -5,13 +5,21 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const estado = searchParams.get('estado') || ''
     const clienteId = searchParams.get('clienteId') || ''
+    const desde = searchParams.get('desde') || ''
+    const hasta = searchParams.get('hasta') || ''
 
     const pedidos = await prisma.pedido.findMany({
         where: {
             ...(estado && { estado }),
             ...(clienteId && { clienteId }),
+            ...((desde || hasta) && {
+                createdAt: {
+                    ...(desde && { gte: new Date(desde) }),
+                    ...(hasta && { lte: new Date(hasta + 'T23:59:59') }),
+                },
+            }),
         },
-        include: { cliente: { select: { nombre: true } }, items: { include: { articulo: { select: { nombre: true } } } } },
+        include: { cliente: { select: { nombre: true, saldo: true } }, items: { include: { articulo: { select: { nombre: true } } } } },
         orderBy: { createdAt: 'desc' },
     })
 
