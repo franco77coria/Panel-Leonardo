@@ -25,18 +25,18 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
     const saldoInfo = getSaldoStatus(Number(cliente.saldo))
     const totalHistorico = cliente.pedidos.filter(p => p.estado === 'cerrado').reduce((s, p) => s + Number(p.total), 0)
 
-    const itemCounts: Record<string, { nombre: string; count: number; precio: number }> = {}
+    const itemCounts: Record<string, { nombre: string; count: number; precio: number; ultimaFecha: string }> = {}
     for (const pedido of cliente.pedidos.filter(p => p.estado === 'cerrado')) {
         for (const item of pedido.items) {
             if (!itemCounts[item.articuloId]) {
-                itemCounts[item.articuloId] = { nombre: item.articulo.nombre, count: 0, precio: Number(item.precioUnitario) }
+                itemCounts[item.articuloId] = { nombre: item.articulo.nombre, count: 0, precio: Number(item.precioUnitario), ultimaFecha: String(pedido.createdAt) }
             }
             itemCounts[item.articuloId].count++
+            itemCounts[item.articuloId].precio = Number(item.precioUnitario)
         }
     }
     const frecuentes = Object.entries(itemCounts)
         .sort((a, b) => b[1].count - a[1].count)
-        .slice(0, 20)
 
     return (
         <>
@@ -189,19 +189,20 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
 
                     <div className="table-container">
                         <div className="table-header">
-                            <span className="table-title">Frecuentes (Top {frecuentes.length})</span>
+                            <span className="table-title">Historial de Artículos ({frecuentes.length})</span>
                         </div>
                         {frecuentes.length === 0 ? (
                             <div className="empty-state"><p>Sin historial de compras cerradas</p></div>
                         ) : (
                             <table>
-                                <thead><tr><th>Artículo</th><th>Veces</th><th>Precio</th></tr></thead>
+                                <thead><tr><th>Artículo</th><th>Veces</th><th>Últ. precio</th><th>Última compra</th></tr></thead>
                                 <tbody>
                                     {frecuentes.map(([artId, data]) => (
                                         <tr key={artId}>
                                             <td>{data.nombre}</td>
                                             <td><span className="badge badge-blue">{data.count}x</span></td>
                                             <td>{formatCurrency(data.precio)}</td>
+                                            <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{formatDate(data.ultimaFecha)}</td>
                                         </tr>
                                     ))}
                                 </tbody>

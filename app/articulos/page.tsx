@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { formatCurrency, daysSince, formatDate } from '@/lib/utils'
 import { ExportArticulosPDF, PrintButton } from '@/components/ExportPDF'
 import { ExportArticulosCSV } from '@/components/ExportCSV'
-import { ArticuloPrecioEditor } from '@/components/ArticuloPrecioEditor'
 import { ArticuloNombreEditor } from '@/components/ArticuloNombreEditor'
 import { ArticuloCostoEditor } from '@/components/ArticuloCostoEditor'
 import { ArticuloProveedorEditor } from '@/components/ArticuloProveedorEditor'
@@ -183,11 +182,6 @@ export default function ArticulosPage() {
                                 <input type="number" step="0.01" value={nuevoForm.costo} onChange={e => setNuevoForm({ ...nuevoForm, costo: e.target.value })} placeholder="Ej: 1500" />
                             </div>
                             <div className="form-group">
-                                <label>Precio de Venta ($)</label>
-                                <input type="number" step="0.01" value={nuevoForm.precio} onChange={e => setNuevoForm({ ...nuevoForm, precio: e.target.value })} placeholder="(Opcional)" />
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Precio sugerido de venta. Si usás listas (Lista 1, 2 o 3) calculadas desde el costo, dejalo en 0.</span>
-                            </div>
-                            <div className="form-group">
                                 <label>Unidad</label>
                                 <select value={nuevoForm.unidad} onChange={e => setNuevoForm({ ...nuevoForm, unidad: e.target.value })}>
                                     <option value="unidad">Unidad</option>
@@ -279,7 +273,6 @@ export default function ArticulosPage() {
                                         <th>Artículo</th>
                                         <th>Proveedor</th>
                                         <th>Costo</th>
-                                        <th>Precio venta</th>
                                         <th>Unidad</th>
                                         <th>Últ. Actualización</th>
                                         <th></th>
@@ -302,9 +295,6 @@ export default function ArticulosPage() {
                                                 </td>
                                                 <td>
                                                     <ArticuloCostoEditor articuloId={a.id} costo={Number(a.costo)} onUpdate={fetchAll} />
-                                                </td>
-                                                <td>
-                                                    <ArticuloPrecioEditor articuloId={a.id} precio={Number(a.precio)} onUpdate={fetchAll} />
                                                 </td>
                                                 <td><span className="badge badge-gray">{a.unidad}</span></td>
                                                 <td>

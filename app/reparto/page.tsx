@@ -18,6 +18,7 @@ export default function RepartoPage() {
     const [desde, setDesde] = useState('')
     const [hasta, setHasta] = useState('')
     const [pedidos, setPedidos] = useState<Pedido[]>([])
+    const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
     const [loading, setLoading] = useState(false)
     const [buscado, setBuscado] = useState(false)
 
@@ -26,14 +27,27 @@ export default function RepartoPage() {
         setLoading(true)
         const res = await fetch(`/api/pedidos?desde=${desde}&hasta=${hasta}`)
         const data = await res.json()
-        setPedidos(Array.isArray(data) ? data : [])
+        const arr = Array.isArray(data) ? data : []
+        setPedidos(arr)
+        setSeleccionados(new Set(arr.map((p: Pedido) => p.id)))
         setLoading(false)
         setBuscado(true)
     }
 
-    const totalSubtotal = pedidos.reduce((s, p) => s + Number(p.total), 0)
-    const totalSaldo = pedidos.reduce((s, p) => s + Number(p.saldoAnterior), 0)
+    const pedidosSel = pedidos.filter(p => seleccionados.has(p.id))
+    const totalSubtotal = pedidosSel.reduce((s, p) => s + Number(p.total), 0)
+    const totalSaldo = pedidosSel.reduce((s, p) => s + Number(p.saldoAnterior), 0)
     const totalGeneral = totalSubtotal + totalSaldo
+
+    const toggleSel = (id: string) => {
+        const next = new Set(seleccionados)
+        next.has(id) ? next.delete(id) : next.add(id)
+        setSeleccionados(next)
+    }
+    const toggleAll = () => {
+        if (seleccionados.size === pedidos.length) setSeleccionados(new Set())
+        else setSeleccionados(new Set(pedidos.map(p => p.id)))
+    }
 
     const generarPDF = () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
@@ -44,7 +58,7 @@ export default function RepartoPage() {
         doc.setFontSize(11); doc.setFont('helvetica', 'normal')
         const fmtLocal = (d: string) => d.split('-').reverse().join('/')
         doc.text(`Del ${fmtLocal(desde)} al ${fmtLocal(hasta)}`, 105, y, { align: 'center' }); y += 6
-        doc.text(`${pedidos.length} pedidos`, 105, y, { align: 'center' }); y += 8
+        doc.text(`${pedidosSel.length} pedidos`, 105, y, { align: 'center' }); y += 8
         doc.line(20, y, 190, y); y += 6
 
         // Table header
@@ -60,7 +74,7 @@ export default function RepartoPage() {
         y += 6; doc.line(15, y, 195, y); y += 5
 
         doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
-        for (const p of pedidos) {
+        for (const p of pedidosSel) {
             if (y > 265) { doc.addPage(); y = 20 }
             const subtotal = Number(p.total)
             const saldo = Number(p.saldoAnterior)
@@ -91,9 +105,9 @@ export default function RepartoPage() {
             <div className="page-header">
                 <h1 className="page-title">Planilla de Reparto</h1>
                 {buscado && pedidos.length > 0 && (
-                    <button onClick={generarPDF} className="btn btn-primary">
+                    <button onClick={generarPDF} disabled={seleccionados.size === 0} className="btn btn-primary">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                        Exportar PDF
+                        Exportar PDF ({seleccionados.size})
                     </button>
                 )}
             </div>
@@ -128,6 +142,7 @@ export default function RepartoPage() {
                         <table>
                             <thead>
                                 <tr>
+                                    <th style={{ width: 36 }}><input type="checkbox" checked={seleccionados.size === pedidos.length} onChange={toggleAll} /></th>
                                     <th>Fecha</th>
                                     <th>N° Pedido</th>
                                     <th>Cliente</th>
@@ -141,7 +156,8 @@ export default function RepartoPage() {
                                     const subtotal = Number(p.total)
                                     const saldo = Number(p.saldoAnterior)
                                     return (
-                                        <tr key={p.id}>
+                                        <tr key={p.id} style={{ opacity: seleccionados.has(p.id) ? 1 : 0.4 }}>
+                                            <td><input type="checkbox" checked={seleccionados.has(p.id)} onChange={() => toggleSel(p.id)} /></td>
                                             <td style={{ fontSize: 13 }}>{formatDate(p.createdAt)}</td>
                                             <td><strong>#{p.numero}</strong></td>
                                             <td>{p.cliente.nombre}</td>
@@ -154,7 +170,7 @@ export default function RepartoPage() {
                             </tbody>
                             <tfoot>
                                 <tr style={{ fontWeight: 700 }}>
-                                    <td colSpan={3} style={{ textAlign: 'right' }}>TOTALES</td>
+                                    <td colSpan={4} style={{ textAlign: 'right' }}>TOTALES ({seleccionados.size} seleccionados)</td>
                                     <td style={{ textAlign: 'right' }}>{formatCurrency(totalSubtotal)}</td>
                                     <td style={{ textAlign: 'right', color: totalSaldo > 0 ? 'var(--red)' : 'var(--text-muted)' }}>{formatCurrency(totalSaldo)}</td>
                                     <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{formatCurrency(totalGeneral)}</td>
