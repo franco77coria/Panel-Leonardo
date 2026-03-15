@@ -42,7 +42,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
 
     const subtotalGeneral = items.reduce((s, i) => s + calcSubtotal(i), 0)
     const saldoAnterior = Number(pedido.saldoAnterior) || 0
-    const totalFinal = subtotalGeneral + (saldoAnterior > 0 ? saldoAnterior : 0)
+    const totalFinal = subtotalGeneral + saldoAnterior
     const badge = getEstadoBadge(pedido.estado)
 
     const searchArticulos = async (q: string) => {
@@ -56,7 +56,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         if (exists) {
             setItems(items.map(i => i.articuloId === a.id ? { ...i, cantidad: Number(i.cantidad) + 1 } : i))
         } else {
-            setItems([...items, { id: `new-${a.id}`, articuloId: a.id, articulo: a, cantidad: 1, precioUnitario: Number((getPrecioBase(a) * listaPrecio).toFixed(2)), descuento: 0, estadoItem: '' }])
+            setItems([{ id: `new-${a.id}`, articuloId: a.id, articulo: a, cantidad: 1, precioUnitario: Number((getPrecioBase(a) * listaPrecio).toFixed(2)), descuento: 0, estadoItem: '' }, ...items])
         }
         setArticuloQuery(''); setArticuloResults([])
     }
@@ -197,13 +197,13 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         // ---------- TABLA DE ITEMS ----------
         y += 14
         const cols = [
-            { label: 'Cant.', w: 14, align: 'center' as const },
-            { label: 'Descripción', w: 60, align: 'left' as const },
-            { label: 'Estado', w: 22, align: 'center' as const },
-            { label: 'P. Unit.', w: 22, align: 'right' as const },
-            { label: '% Dto.', w: 14, align: 'center' as const },
-            { label: 'P. c/Dto.', w: 24, align: 'right' as const },
-            { label: 'Subtotal', w: 28, align: 'right' as const },
+            { label: 'Cant.', w: 12, align: 'center' as const },
+            { label: 'Descripción', w: 76, align: 'left' as const },
+            { label: 'Estado', w: 18, align: 'center' as const },
+            { label: 'P. Unit.', w: 20, align: 'right' as const },
+            { label: '% Dto.', w: 12, align: 'center' as const },
+            { label: 'P. c/Dto.', w: 22, align: 'right' as const },
+            { label: 'Subtotal', w: 24, align: 'right' as const },
         ]
         const totalColW = cols.reduce((s, c) => s + c.w, 0)
 
@@ -245,7 +245,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
             cx += cols[0].w
             // Descripción
             doc.setFont('helvetica', 'bold')
-            doc.text(item.articulo.nombre.substring(0, 32), cx + 2, y + 4.5)
+            doc.text(item.articulo.nombre.substring(0, 48), cx + 2, y + 4.5)
             doc.setFont('helvetica', 'normal')
             cx += cols[1].w
             // Estado
@@ -280,8 +280,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         }
 
         // ---------- FOOTER: Subtotal / Saldo / TOTAL ----------
-        // Si hay espacio, empujar el footer al fondo de la hoja
-        y = Math.max(y + 2, 260)
+        y = y + 4
         const footerX = margin + totalColW - 60
 
         // Subtotal general
@@ -293,12 +292,21 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         // Saldo anterior
         y += 6
         doc.setFont('helvetica', 'normal')
-        doc.text('SALDO:', footerX, y + 5)
-        doc.setFont('helvetica', 'bold')
         if (saldoAnterior > 0) {
+            doc.text('SALDO (DEBE):', footerX, y + 5)
+            doc.setFont('helvetica', 'bold')
             doc.setTextColor(220, 38, 38)
+            doc.text(formatCurrency(saldoAnterior), margin + totalColW - 2, y + 5, { align: 'right' })
+        } else if (saldoAnterior < 0) {
+            doc.text('SALDO (A FAVOR):', footerX, y + 5)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(22, 163, 74)
+            doc.text(`-${formatCurrency(Math.abs(saldoAnterior))}`, margin + totalColW - 2, y + 5, { align: 'right' })
+        } else {
+            doc.text('SALDO:', footerX, y + 5)
+            doc.setFont('helvetica', 'bold')
+            doc.text(formatCurrency(0), margin + totalColW - 2, y + 5, { align: 'right' })
         }
-        doc.text(formatCurrency(saldoAnterior), margin + totalColW - 2, y + 5, { align: 'right' })
         doc.setTextColor(0)
 
         // TOTAL - grande y destacado
@@ -311,6 +319,13 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         doc.setFontSize(14)
         doc.text(formatCurrency(totalFinal), margin + totalColW - 2, y + 7, { align: 'right' })
         doc.setTextColor(0)
+
+        // ---------- RECUADRO: Enmarcar toda la boleta ----------
+        const tableStartY = 198 // aprox. donde empieza la sección CLIENTE
+        const frameTop = 38 // justo debajo del header
+        const frameBottom = y + 12
+        doc.setDrawColor(180); doc.setLineWidth(0.4)
+        doc.rect(margin, frameTop, totalColW, frameBottom - frameTop)
 
         // Notas
         if (pedido.notas) {

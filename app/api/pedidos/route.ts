@@ -7,6 +7,16 @@ export async function GET(req: NextRequest) {
     const clienteId = searchParams.get('clienteId') || ''
     const desde = searchParams.get('desde') || ''
     const hasta = searchParams.get('hasta') || ''
+    const q = searchParams.get('q') || ''
+
+    // Build text search filter
+    const qNum = parseInt(q)
+    const textFilter = q ? {
+        OR: [
+            { cliente: { nombre: { contains: q, mode: 'insensitive' as const } } },
+            ...((!isNaN(qNum)) ? [{ numero: qNum }] : []),
+        ],
+    } : {}
 
     const pedidos = await prisma.pedido.findMany({
         where: {
@@ -18,6 +28,7 @@ export async function GET(req: NextRequest) {
                     ...(hasta && { lte: new Date(hasta + 'T23:59:59') }),
                 },
             }),
+            ...textFilter,
         },
         include: { cliente: { select: { nombre: true, saldo: true } }, items: { include: { articulo: { select: { nombre: true } } } } },
         orderBy: { createdAt: 'desc' },

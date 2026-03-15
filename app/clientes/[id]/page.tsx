@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ClienteSaldoEditor } from '@/components/ClienteSaldoEditor'
 import { ClienteInlineEditor } from '@/components/ClienteInlineEditor'
+import { CuentaCorrientePanel } from '@/components/CuentaCorrientePanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,7 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                 orderBy: { createdAt: 'desc' },
                 include: { items: { include: { articulo: { select: { nombre: true } } } } },
             },
-            movimientosCC: { orderBy: { createdAt: 'desc' }, take: 10 },
+            movimientosCC: { orderBy: { createdAt: 'desc' } },
         },
     })
 
@@ -106,56 +107,19 @@ export default async function ClientePage({ params }: { params: Promise<{ id: st
                         <div style={{ marginBottom: 16 }}>
                             <span className={`badge badge-${saldoInfo.color}`} style={{ fontSize: 14, padding: '5px 12px' }}>{saldoInfo.label}</span>
                         </div>
-                        <ClienteSaldoEditor clienteId={id} saldoActual={Number(cliente.saldo)} />
-                        <div style={{ marginTop: 20 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                <span style={{ fontWeight: 600, fontSize: 14 }}>Historial de Cuenta Corriente</span>
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Últimos {cliente.movimientosCC.length} movimientos</span>
-                            </div>
-                            {cliente.movimientosCC.length === 0 ? (
-                                <div className="empty-state" style={{ padding: 8 }}>
-                                    <p style={{ fontSize: 13 }}>Sin movimientos aún.</p>
-                                </div>
-                            ) : (
-                                <div className="table-container" style={{ boxShadow: 'none', border: '1px solid var(--border)', marginTop: 0 }}>
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th>Fecha</th>
-                                                <th>Tipo</th>
-                                                <th>Descripción</th>
-                                                <th style={{ textAlign: 'right' }}>Monto</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {cliente.movimientosCC.map(m => {
-                                                const montoBruto = Number(m.monto)
-                                                const montoFirmado = m.tipo === 'pago' ? -montoBruto : montoBruto
-                                                const tipo = m.tipo.toLowerCase()
-                                                const badgeClass =
-                                                    tipo === 'cargo' ? 'badge-red'
-                                                        : tipo === 'pago' ? 'badge-green'
-                                                            : tipo === 'ajuste' ? 'badge-yellow'
-                                                                : 'badge-gray'
-                                                const label =
-                                                    tipo === 'cargo' ? 'Cargo'
-                                                        : tipo === 'pago' ? 'Pago'
-                                                            : tipo === 'ajuste' ? 'Ajuste'
-                                                                : m.tipo
-                                                return (
-                                                    <tr key={m.id}>
-                                                        <td>{formatDate(m.createdAt)}</td>
-                                                        <td><span className={`badge ${badgeClass}`}>{label}</span></td>
-                                                        <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{m.descripcion || '—'}</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(montoFirmado)}</td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
+                        <ClienteSaldoEditor clienteId={id} clienteNombre={cliente.nombre} saldoActual={Number(cliente.saldo)} />
+                        <CuentaCorrientePanel
+                            clienteNombre={cliente.nombre}
+                            clienteId={id}
+                            saldoActual={Number(cliente.saldo)}
+                            movimientos={cliente.movimientosCC.map(m => ({
+                                id: m.id,
+                                tipo: m.tipo,
+                                monto: Number(m.monto),
+                                descripcion: m.descripcion,
+                                createdAt: m.createdAt.toISOString(),
+                            }))}
+                        />
                     </div>
                 </div>
 

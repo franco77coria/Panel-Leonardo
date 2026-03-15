@@ -16,6 +16,13 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
             ...(ciudad && { localidad: { contains: ciudad, mode: 'insensitive' } }),
         },
         orderBy: { nombre: 'asc' },
+        include: {
+            movimientosCC: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { createdAt: true },
+            },
+        },
     })
 
     const deudores = clientes.filter(c => Number(c.saldo) > 0)
@@ -37,25 +44,23 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
                     <p className="page-subtitle">{clientes.length} clientes activos {ciudad && <>en <strong>{ciudad}</strong></>}</p>
                 </div>
                 <div className="page-actions">
-                    <ExportClientesPDF clientes={clientes.map(c => ({ nombre: c.nombre, ciudad: (c as any).localidad || '', direccion: c.direccion || '', telefono: c.telefono || '', saldo: Number(c.saldo), fecha: c.createdAt.toISOString() }))} />
+                    <ExportClientesPDF clientes={clientes.map(c => ({ nombre: c.nombre, ciudad: (c as any).localidad || '', telefono: c.telefono || '', saldo: Number(c.saldo), ultimoMovimiento: c.movimientosCC[0]?.createdAt?.toISOString() || '' }))} />
                     <ExportDeudoresCSV
                         deudores={deudores.map(c => ({
                             nombre: c.nombre,
                             ciudad: (c as any).localidad || '',
-                            direccion: c.direccion || '',
                             telefono: c.telefono || '',
                             saldo: Number(c.saldo),
-                            fechaAlta: c.createdAt.toISOString(),
+                            ultimoMovimiento: c.movimientosCC[0]?.createdAt?.toISOString() || '',
                         }))}
                     />
                     <ExportAFavorCSV
                         clientes={aFavor.map(c => ({
                             nombre: c.nombre,
                             ciudad: (c as any).localidad || '',
-                            direccion: c.direccion || '',
                             telefono: c.telefono || '',
                             saldo: Number(c.saldo),
-                            fechaAlta: c.createdAt.toISOString(),
+                            ultimoMovimiento: c.movimientosCC[0]?.createdAt?.toISOString() || '',
                         }))}
                     />
                     <PrintButton />

@@ -88,7 +88,7 @@ export function ExportPedidosPDF({ pedidos }: { pedidos: PedidoRow[] }) {
 }
 
 // Clientes List PDF
-interface ClienteRow { nombre: string; ciudad: string; direccion: string; telefono: string; saldo: number; fecha: string }
+interface ClienteRow { nombre: string; ciudad: string; telefono: string; saldo: number; ultimoMovimiento: string }
 
 export function ExportClientesPDF({ clientes }: { clientes: ClienteRow[] }) {
     const exportar = () => {
@@ -98,8 +98,8 @@ export function ExportClientesPDF({ clientes }: { clientes: ClienteRow[] }) {
         const cols = [
             { label: 'CLIENTE', x: 22 },
             { label: 'CIUDAD', x: 72 },
-            { label: 'DIRECCIÓN', x: 108 },
-            { label: 'TEL.', x: 148 },
+            { label: 'TEL.', x: 112 },
+            { label: 'ÚLT. MOV.', x: 140 },
             { label: 'SALDO', x: 170 },
         ]
         y = pdfTableHeader(doc, y, cols)
@@ -108,11 +108,11 @@ export function ExportClientesPDF({ clientes }: { clientes: ClienteRow[] }) {
         for (const c of clientes) {
             y = checkPage(doc, y)
             doc.setFont('helvetica', 'bold')
-            doc.text(c.nombre.substring(0, 18), 22, y)
+            doc.text(c.nombre.substring(0, 20), 22, y)
             doc.setFont('helvetica', 'normal')
-            doc.text((c.ciudad || '–').substring(0, 12), 72, y)
-            doc.text((c.direccion || '–').substring(0, 14), 108, y)
-            doc.text((c.telefono || '–').substring(0, 10), 148, y)
+            doc.text((c.ciudad || '–').substring(0, 14), 72, y)
+            doc.text((c.telefono || '–').substring(0, 12), 112, y)
+            doc.text(c.ultimoMovimiento ? formatDate(c.ultimoMovimiento) : '–', 140, y)
             const saldo = Number(c.saldo)
             if (saldo > 0) doc.setTextColor(220, 38, 38)
             else if (saldo < 0) doc.setTextColor(22, 163, 74)

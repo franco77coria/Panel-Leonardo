@@ -85,7 +85,7 @@ function NuevoPedidoPage() {
         if (existing) {
             setItems(items.map(i => i.articuloId === articulo.id ? { ...i, cantidad: i.cantidad + 1 } : i))
         } else {
-            setItems([...items, { articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, precioBase, lista: listaPrecio, estadoItem: '', descuento: 0 }])
+            setItems([{ articuloId: articulo.id, nombre: articulo.nombre, cantidad: 1, precioUnitario: precioAplicado, precioBase, lista: listaPrecio, estadoItem: '', descuento: 0 }, ...items])
         }
         setArticuloQuery('')
         setArticulos([])

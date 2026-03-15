@@ -70,10 +70,9 @@ export function ExportArticulosCSV({ articulos }: { articulos: ArticuloCSVRow[] 
 interface DeudorCSVRow {
     nombre: string
     ciudad: string
-    direccion: string
     telefono: string
     saldo: number
-    fechaAlta: string
+    ultimoMovimiento: string
 }
 
 export function ExportDeudoresCSV({ deudores }: { deudores: DeudorCSVRow[] }) {
@@ -83,14 +82,13 @@ export function ExportDeudoresCSV({ deudores }: { deudores: DeudorCSVRow[] }) {
             return
         }
 
-        const header = ['Cliente', 'Ciudad', 'Dirección', 'Teléfono', 'Saldo', 'Cliente desde']
+        const header = ['Cliente', 'Ciudad', 'Teléfono', 'Saldo', 'Último movimiento']
         const rows = deudores.map(d => [
             d.nombre,
             d.ciudad || '',
-            d.direccion || '',
             d.telefono || '',
             formatCurrency(d.saldo),
-            formatDate(d.fechaAlta),
+            d.ultimoMovimiento ? formatDate(d.ultimoMovimiento) : '—',
         ])
 
         downloadCSV('deudores.csv', [header, ...rows])
@@ -111,14 +109,13 @@ export function ExportAFavorCSV({ clientes }: { clientes: DeudorCSVRow[] }) {
             return
         }
 
-        const header = ['Cliente', 'Ciudad', 'Dirección', 'Teléfono', 'Saldo', 'Cliente desde']
+        const header = ['Cliente', 'Ciudad', 'Teléfono', 'Saldo a favor', 'Último movimiento']
         const rows = clientes.map(d => [
             d.nombre,
             d.ciudad || '',
-            d.direccion || '',
             d.telefono || '',
             formatCurrency(d.saldo),
-            formatDate(d.fechaAlta),
+            d.ultimoMovimiento ? formatDate(d.ultimoMovimiento) : '—',
         ])
 
         downloadCSV('saldo-a-favor.csv', [header, ...rows])
