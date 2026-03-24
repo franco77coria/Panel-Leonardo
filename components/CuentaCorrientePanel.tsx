@@ -24,21 +24,34 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
     const [hasta, setHasta] = useState('')
     const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
 
-    // Filter by date range
-    const movsFiltrados = movimientos.filter(m => {
+    // Calculate running balance backwards from saldoActual (through ALL movements first, then filter)
+    // movimientos are newest-first from API
+    type MovConSaldo = Movimiento & { saldoAnterior: number; saldoDespues: number }
+    const allMovsConSaldo: MovConSaldo[] = []
+    let saldoRunner = saldoActual
+    for (let i = 0; i < movimientos.length; i++) {
+        const m = movimientos[i]
+        const montoBruto = Number(m.monto)
+        const saldoDespues = saldoRunner
+        // Undo the movement to get saldoAnterior
+        if (m.tipo === 'pago') {
+            saldoRunner = saldoRunner + montoBruto // undo payment (was subtracted)
+        } else if (m.tipo === 'ajuste') {
+            // Ajuste sets saldo to an absolute value — can't reverse, break chain
+            saldoRunner = saldoDespues // keep same (we don't know what was before)
+        } else {
+            // cargo
+            saldoRunner = saldoRunner - montoBruto // undo charge (was added)
+        }
+        allMovsConSaldo.push({ ...m, saldoAnterior: saldoRunner, saldoDespues })
+    }
+    // Now filter by date
+    const movsConSaldo = allMovsConSaldo.filter(m => {
         const fecha = new Date(m.createdAt)
         if (desde && fecha < new Date(desde)) return false
         if (hasta && fecha > new Date(hasta + 'T23:59:59')) return false
         return true
     })
-
-    // Calculate running balance (from oldest to newest)
-    const movsConSaldo = [...movsFiltrados].reverse().reduce<(Movimiento & { saldoAcumulado: number })[]>((acc, m) => {
-        const prevSaldo = acc.length > 0 ? acc[acc.length - 1].saldoAcumulado : 0
-        const montoBruto = Number(m.monto)
-        const montoFirmado = m.tipo === 'pago' ? -montoBruto : montoBruto
-        return [...acc, { ...m, saldoAcumulado: prevSaldo + montoFirmado }]
-    }, []).reverse() // Back to newest-first for display
 
     const toggleSel = (id: string) => {
         const next = new Set(seleccionados)
@@ -81,17 +94,18 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
         // Table header
         doc.setFillColor(245, 246, 248)
         doc.rect(15, y - 4, 180, 8, 'F')
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
         doc.text('FECHA', 17, y)
-        doc.text('TIPO', 45, y)
-        doc.text('DESCRIPCIÓN', 68, y)
-        doc.text('MONTO', 140, y)
-        doc.text('SALDO', 170, y)
+        doc.text('TIPO', 40, y)
+        doc.text('DESCRIPCIÓN', 58, y)
+        doc.text('SALDO ANT.', 118, y)
+        doc.text('MONTO', 148, y)
+        doc.text('SALDO REST.', 172, y)
         y += 6; doc.setDrawColor(200); doc.line(15, y, 195, y); y += 5
 
         // Rows (show in chronological order for the PDF)
         const movsOrdenados = [...movsSel].reverse()
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
         for (const m of movsOrdenados) {
             if (y > 265) { doc.addPage(); y = 20 }
             const montoBruto = Number(m.monto)
@@ -99,20 +113,27 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
 
             doc.text(formatDate(m.createdAt), 17, y)
             doc.setFont('helvetica', 'bold')
-            doc.text(m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1), 45, y)
+            doc.text(m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1), 40, y)
             doc.setFont('helvetica', 'normal')
-            doc.text((m.descripcion || '—').substring(0, 30), 68, y)
+            doc.text((m.descripcion || '—').substring(0, 25), 58, y)
 
-            if (montoFirmado > 0) doc.setTextColor(220, 38, 38)
-            else if (montoFirmado < 0) doc.setTextColor(22, 163, 74)
-            doc.text(formatCurrency(montoFirmado), 140, y)
+            // Saldo anterior
+            if (m.saldoAnterior > 0) doc.setTextColor(220, 38, 38)
+            else if (m.saldoAnterior < 0) doc.setTextColor(22, 163, 74)
+            doc.text(formatCurrency(m.saldoAnterior), 118, y)
             doc.setTextColor(0)
 
+            // Monto
+            if (montoFirmado > 0) doc.setTextColor(220, 38, 38)
+            else if (montoFirmado < 0) doc.setTextColor(22, 163, 74)
+            doc.text(formatCurrency(montoFirmado), 148, y)
+            doc.setTextColor(0)
+
+            // Saldo restante
             doc.setFont('helvetica', 'bold')
-            const saldo = m.saldoAcumulado
-            if (saldo > 0) doc.setTextColor(220, 38, 38)
-            else if (saldo < 0) doc.setTextColor(22, 163, 74)
-            doc.text(formatCurrency(saldo), 170, y)
+            if (m.saldoDespues > 0) doc.setTextColor(220, 38, 38)
+            else if (m.saldoDespues < 0) doc.setTextColor(22, 163, 74)
+            doc.text(formatCurrency(m.saldoDespues), 172, y)
             doc.setTextColor(0)
             doc.setFont('helvetica', 'normal')
 
@@ -168,8 +189,9 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
                                 <th>Fecha</th>
                                 <th>Tipo</th>
                                 <th>Descripción</th>
+                                <th style={{ textAlign: 'right' }}>Saldo Ant.</th>
                                 <th style={{ textAlign: 'right' }}>Monto</th>
-                                <th style={{ textAlign: 'right' }}>Saldo</th>
+                                <th style={{ textAlign: 'right' }}>Saldo Rest.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -183,11 +205,14 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
                                         <td style={{ fontSize: 12 }}>{formatDate(m.createdAt)}</td>
                                         <td><span className={`badge ${badge.className}`} style={{ fontSize: 11 }}>{badge.label}</span></td>
                                         <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{m.descripcion || '—'}</td>
+                                        <td style={{ textAlign: 'right', fontSize: 12, color: m.saldoAnterior > 0 ? 'var(--red)' : m.saldoAnterior < 0 ? 'var(--green)' : 'inherit' }}>
+                                            {formatCurrency(m.saldoAnterior)}
+                                        </td>
                                         <td style={{ textAlign: 'right', fontWeight: 600, color: montoFirmado > 0 ? 'var(--red)' : montoFirmado < 0 ? 'var(--green)' : 'inherit' }}>
                                             {formatCurrency(montoFirmado)}
                                         </td>
-                                        <td style={{ textAlign: 'right', fontWeight: 700, color: m.saldoAcumulado > 0 ? 'var(--red)' : m.saldoAcumulado < 0 ? 'var(--green)' : 'inherit' }}>
-                                            {formatCurrency(m.saldoAcumulado)}
+                                        <td style={{ textAlign: 'right', fontWeight: 700, color: m.saldoDespues > 0 ? 'var(--red)' : m.saldoDespues < 0 ? 'var(--green)' : 'inherit' }}>
+                                            {formatCurrency(m.saldoDespues)}
                                         </td>
                                     </tr>
                                 )
