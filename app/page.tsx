@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getEstadoBadge } from '@/lib/utils'
 import Link from 'next/link'
+import { PagoRapido } from '@/components/PagoRapido'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,6 +86,7 @@ export default async function DashboardPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 24 }}>
           <Link href="/pedidos/nuevo" className="btn btn-primary btn-lg">Nuevo Pedido</Link>
+          <PagoRapido />
           <Link href="/logistica" className="btn btn-secondary btn-lg">Lista de Armado</Link>
           <Link href="/clientes/nuevo" className="btn btn-secondary btn-lg">Nuevo Cliente</Link>
           <Link href="/articulos" className="btn btn-secondary btn-lg">Ver Artículos</Link>
