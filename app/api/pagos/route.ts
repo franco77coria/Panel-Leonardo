@@ -9,17 +9,14 @@ export async function GET(req: NextRequest) {
     const desde = searchParams.get('desde')
     const hasta = searchParams.get('hasta')
 
-    if (!desde || !hasta) {
-        return NextResponse.json({ error: 'Se requieren parámetros desde y hasta' }, { status: 400 })
-    }
+    const whereDate = desde && hasta
+        ? { gte: new Date(desde + 'T00:00:00-03:00'), lte: new Date(hasta + 'T23:59:59-03:00') }
+        : undefined
 
     const pagos = await prisma.movimientoCC.findMany({
         where: {
             tipo: 'pago',
-            createdAt: {
-                gte: new Date(desde + 'T00:00:00-03:00'),
-                lte: new Date(hasta + 'T23:59:59-03:00'),
-            },
+            ...(whereDate ? { createdAt: whereDate } : {}),
         },
         include: {
             cliente: { select: { id: true, nombre: true } },
