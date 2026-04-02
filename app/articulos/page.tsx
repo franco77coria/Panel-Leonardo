@@ -272,7 +272,7 @@ export default function ArticulosPage() {
                                 <thead>
                                     <tr>
                                         <th>Artículo</th>
-                                        <th>Rubro</th>
+                                        <th className="hide-mobile">Rubro</th>
                                         <th>Proveedor</th>
                                         <th>Costo</th>
                                         <th>Unidad</th>
@@ -286,7 +286,7 @@ export default function ArticulosPage() {
                                         return (
                                             <tr key={a.id}>
                                                 <td><ArticuloNombreEditor articuloId={a.id} nombre={a.nombre} onUpdate={fetchAll} /></td>
-                                                <td>
+                                                <td className="hide-mobile">
                                                     <ArticuloRubroEditor
                                                         articuloId={a.id}
                                                         rubros={rubros}

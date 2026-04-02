@@ -214,7 +214,7 @@ export default function PagosPage() {
 
                     {/* Cards de resumen */}
                     {filtroTipo === 'Todos' && desglose.length > 1 && (
-                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(desglose.length, 3)}, 1fr)`, gap: 8, marginBottom: 12 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 12 }}>
                             {desglose.map(d => (
                                 <div
                                     key={d.tipo}
@@ -264,7 +264,7 @@ export default function PagosPage() {
                         </table>
 
                         {/* Paginación */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
                             <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
                                 {pagosFiltrados.length} pagos{filtroTipo !== 'Todos' ? ` (${filtroTipo})` : ''} — Total: <strong style={{ color: 'var(--green)' }}>{formatCurrency(totalFiltrado)}</strong>
                             </span>
