@@ -1,10 +1,7 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
-
-const USERS = [
-    { id: '1', username: 'f77franco', password: '42725129', name: 'Franco' },
-    { id: '2', username: 'Leo.Vir', password: '1985ELV', name: 'Leonardo' },
-]
+import * as bcrypt from 'bcryptjs'
+import { prisma } from '@/lib/prisma'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
@@ -14,10 +11,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 password: { label: 'Contraseña', type: 'password' },
             },
             async authorize(credentials) {
-                const user = USERS.find(
-                    u => u.username === credentials?.username && u.password === credentials?.password
+                if (!credentials?.username || !credentials?.password) return null
+
+                const user = await prisma.user.findUnique({
+                    where: { username: credentials.username as string },
+                })
+
+                if (!user || !user.activo) return null
+
+                const passwordOk = await bcrypt.compare(
+                    credentials.password as string,
+                    user.passwordHash
                 )
-                if (!user) return null
+                if (!passwordOk) return null
+
                 return { id: user.id, name: user.name, email: `${user.username}@panel` }
             },
         }),
@@ -27,7 +34,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     session: {
         strategy: 'jwt',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
+        maxAge: 30 * 24 * 60 * 60, // 30 días
     },
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
