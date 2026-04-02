@@ -222,6 +222,7 @@ function NuevoPedidoPage() {
                                     Lista por defecto
                                 </div>
                                 <select value={listaPrecio} onChange={handleListaChange} style={{ flex: 1, padding: '8px 12px', fontSize: 15, fontWeight: 600 }}>
+                                    <option value={1.00}>Lista 0 (Costo)</option>
                                     <option value={1.20}>Lista 1 (+20% sobre costo)</option>
                                     <option value={1.25}>Lista 2 (+25% sobre costo)</option>
                                     <option value={1.35}>Lista 3 (+35% sobre costo)</option>
@@ -302,6 +303,7 @@ function NuevoPedidoPage() {
                                                                 value={item.lista}
                                                                 onChange={e => updateLista(item.articuloId, Number(e.target.value))}
                                                                 style={{ fontSize: 11, padding: '2px 4px', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text-muted)', width: 88 }}>
+                                                                <option value={1.00}>Lista 0 (Costo)</option>
                                                                 <option value={1.20}>Lista 1 (+20%)</option>
                                                                 <option value={1.25}>Lista 2 (+25%)</option>
                                                                 <option value={1.35}>Lista 3 (+35%)</option>

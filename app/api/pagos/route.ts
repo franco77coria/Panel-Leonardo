@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
         where: {
             tipo: 'pago',
             createdAt: {
-                gte: new Date(desde),
-                lte: new Date(hasta + 'T23:59:59'),
+                gte: new Date(desde + 'T00:00:00-03:00'),
+                lte: new Date(hasta + 'T23:59:59-03:00'),
             },
         },
         include: {

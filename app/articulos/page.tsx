@@ -8,6 +8,7 @@ import { ExportArticulosCSV } from '@/components/ExportCSV'
 import { ArticuloNombreEditor } from '@/components/ArticuloNombreEditor'
 import { ArticuloCostoEditor } from '@/components/ArticuloCostoEditor'
 import { ArticuloProveedorEditor } from '@/components/ArticuloProveedorEditor'
+import { ArticuloRubroEditor } from '@/components/ArticuloRubroEditor'
 
 interface Rubro { id: string; nombre: string }
 interface Proveedor { id: string; nombre: string }
@@ -271,6 +272,7 @@ export default function ArticulosPage() {
                                 <thead>
                                     <tr>
                                         <th>Artículo</th>
+                                        <th>Rubro</th>
                                         <th>Proveedor</th>
                                         <th>Costo</th>
                                         <th>Unidad</th>
@@ -284,6 +286,15 @@ export default function ArticulosPage() {
                                         return (
                                             <tr key={a.id}>
                                                 <td><ArticuloNombreEditor articuloId={a.id} nombre={a.nombre} onUpdate={fetchAll} /></td>
+                                                <td>
+                                                    <ArticuloRubroEditor
+                                                        articuloId={a.id}
+                                                        rubros={rubros}
+                                                        rubroId={a.rubro?.id}
+                                                        rubroNombre={a.rubro?.nombre}
+                                                        onUpdate={fetchAll}
+                                                    />
+                                                </td>
                                                 <td>
                                                     <ArticuloProveedorEditor
                                                         articuloId={a.id}
