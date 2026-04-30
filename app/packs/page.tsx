@@ -201,9 +201,9 @@ export default function ListasPreciosPage() {
         let y = 20
 
         doc.setFontSize(26); doc.setFont('helvetica', 'bold')
-        doc.text('PAPELERA LEO', 105, y, { align: 'center' }); y += 8
-        doc.setFontSize(11); doc.setFont('helvetica', 'normal')
-        doc.text('Tel: 11 3808-8724 - WhatsApp', 105, y, { align: 'center' }); y += 10
+        doc.text('PAPELERA', 105, y, { align: 'center' }); y += 8
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+        doc.text('Leo  |  Tel: 11 3808-8724 - WhatsApp', 105, y, { align: 'center' }); y += 10
 
         doc.setFontSize(16); doc.setFont('helvetica', 'bold')
         doc.text(nombreLista || 'Lista de Precios', 105, y, { align: 'center' }); y += 7

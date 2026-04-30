@@ -15,6 +15,7 @@ const nav = [
     { href: '/pedidos', label: 'Pedidos', icon: <IconClipboard size={20} /> },
     { href: '/logistica', label: 'Logística', icon: <IconPackage size={20} /> },
     { href: '/packs', label: 'Listas de Precios', icon: <IconGift size={20} /> },
+    { href: '/pedidos-proveedores', label: 'Pedido a Proveedores', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></svg> },
     { href: '/reparto', label: 'Reparto', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></svg> },
 ]
 

@@ -116,11 +116,13 @@ function NuevoPedidoPage() {
     const updateEstadoItem = (articuloId: string, estado: string) => {
         setItems(items.map(i => {
             if (i.articuloId === articuloId) {
-                // Automáticamente convertir cantidad a negativo si es devolución
                 let nuevaCant = i.cantidad
+                let nuevoPrecio = i.precioUnitario
                 if (estado === 'Devolución' && nuevaCant > 0) nuevaCant = -nuevaCant
                 if (estado !== 'Devolución' && nuevaCant < 0) nuevaCant = Math.abs(nuevaCant)
-                return { ...i, estadoItem: estado, cantidad: nuevaCant }
+                if (estado === 'Sin Cargo') nuevoPrecio = 0
+                if (estado !== 'Sin Cargo' && i.estadoItem === 'Sin Cargo') nuevoPrecio = Number((i.precioBase * i.lista).toFixed(2))
+                return { ...i, estadoItem: estado, cantidad: nuevaCant, precioUnitario: nuevoPrecio }
             }
             return i
         }))
@@ -283,6 +285,7 @@ function NuevoPedidoPage() {
                                                                 <option value="Entregado">Entregado</option>
                                                                 <option value="Cambio">Cambio</option>
                                                                 <option value="Devolución">Devolución</option>
+                                                                <option value="Sin Cargo">Sin Cargo</option>
                                                             </select>
                                                             {item.precioUnitario > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>M: ${item.precioUnitario}</span>}
                                                         </div>
@@ -334,6 +337,7 @@ function NuevoPedidoPage() {
                                                             <option value="Entregado">Entregado</option>
                                                             <option value="Cambio">Cambio</option>
                                                             <option value="Devolución">Devolución</option>
+                                                            <option value="Sin Cargo">Sin Cargo</option>
                                                         </select>
                                                     </td>
                                                     <td><strong style={{ color: subtotalNumber < 0 ? 'var(--red)' : 'inherit' }}>{formatCurrency(subtotalNumber)}</strong></td>

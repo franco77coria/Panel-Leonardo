@@ -478,9 +478,11 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                                                     onChange={e => {
                                                         const nuevoEstado = e.target.value
                                                         let nuevaCant = item.cantidad
+                                                        let nuevoPrecio = item.precioUnitario
                                                         if (nuevoEstado === 'Devolución' && nuevaCant > 0) nuevaCant = -nuevaCant
                                                         if (nuevoEstado !== 'Devolución' && nuevaCant < 0) nuevaCant = Math.abs(nuevaCant)
-                                                        setItems(items.map(i => i.id === item.id ? { ...i, estadoItem: nuevoEstado, cantidad: nuevaCant } : i))
+                                                        if (nuevoEstado === 'Sin Cargo') nuevoPrecio = 0
+                                                        setItems(items.map(i => i.id === item.id ? { ...i, estadoItem: nuevoEstado, cantidad: nuevaCant, precioUnitario: nuevoPrecio } : i))
                                                     }}
                                                     style={{ width: 95, padding: '4px 6px', fontSize: 12, border: '1px solid var(--border)' }}
                                                 >
@@ -488,6 +490,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                                                     <option value="Entregado">Entregado</option>
                                                     <option value="Cambio">Cambio</option>
                                                     <option value="Devolución">Devolución</option>
+                                                    <option value="Sin Cargo">Sin Cargo</option>
                                                 </select>
                                             ) : (
                                                 item.estadoItem ? <span className="badge badge-gray" style={{ fontSize: 11 }}>{item.estadoItem}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>
