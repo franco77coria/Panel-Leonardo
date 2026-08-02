@@ -7,8 +7,19 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number | string | null | undefined): string {
-    const num = typeof amount === 'string' ? parseFloat(amount) : (amount ?? 0)
+export function round2(num: any): number {
+    if (num === null || num === undefined) return 0
+    const val = typeof num === 'object' && num !== null && 'toNumber' in num
+        ? (num as any).toNumber()
+        : typeof num === 'string'
+            ? parseFloat(num)
+            : Number(num)
+    if (isNaN(val)) return 0
+    return Math.round((val + Number.EPSILON) * 100) / 100
+}
+
+export function formatCurrency(amount: any): string {
+    const num = round2(amount)
     return new Intl.NumberFormat('es-AR', {
         style: 'currency',
         currency: 'ARS',
@@ -27,12 +38,12 @@ export function formatDateTime(date: Date | string | null | undefined): string {
     return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: es })
 }
 
-export function getSaldoStatus(saldo: number | string): {
+export function getSaldoStatus(saldo: any): {
     label: string
     color: 'red' | 'green' | 'gray'
     isDebt: boolean
 } {
-    const num = typeof saldo === 'string' ? parseFloat(saldo) : saldo
+    const num = round2(saldo)
     if (num > 0) return { label: `DEBE ${formatCurrency(num)}`, color: 'red', isDebt: true }
     if (num < 0) return { label: `A FAVOR ${formatCurrency(Math.abs(num))}`, color: 'green', isDebt: false }
     return { label: 'Sin saldo', color: 'gray', isDebt: false }

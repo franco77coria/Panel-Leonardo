@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, round2 } from '@/lib/utils'
 import { generarBoletasLotePDF } from '@/lib/pdf'
 import jsPDF from 'jspdf'
 
@@ -28,26 +28,32 @@ export default function RepartoPage() {
     const buscar = async () => {
         if (!desde || !hasta) return alert('Seleccioná ambas fechas')
         setLoading(true)
-        const res = await fetch(`/api/pedidos?desde=${desde}&hasta=${hasta}`)
-        const data = await res.json()
-        const arr = Array.isArray(data) ? data : []
-        setPedidos(arr)
-        setSeleccionados(arr.map((p: Pedido) => p.id))
-        setLoading(false)
-        setBuscado(true)
+        try {
+            const res = await fetch(`/api/pedidos?desde=${desde}&hasta=${hasta}`)
+            if (!res.ok) throw new Error('API error')
+            const data = await res.json()
+            const arr = Array.isArray(data) ? data : []
+            setPedidos(arr)
+            setSeleccionados(arr.map((p: Pedido) => p.id))
+            setBuscado(true)
+        } catch {
+            alert('Error al buscar pedidos para reparto.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     const selSet = new Set(seleccionados)
     const pedidosSel = seleccionados.map(id => pedidos.find(p => p.id === id)!).filter(Boolean)
-    const totalSubtotal = pedidosSel.reduce((s, p) => s + Number(p.total), 0)
-    const totalSaldo = pedidosSel.reduce((s, p) => s + Number(p.saldoAnterior), 0)
-    const totalGeneral = totalSubtotal + totalSaldo
+    const totalSubtotal = round2(pedidosSel.reduce((s, p) => s + Number(p.total), 0))
+    const totalSaldo = round2(pedidosSel.reduce((s, p) => s + Number(p.saldoAnterior), 0))
+    const totalGeneral = round2(totalSubtotal + totalSaldo)
 
     const toggleSel = (id: string) => {
         if (selSet.has(id)) {
             setSeleccionados(seleccionados.filter(x => x !== id))
         } else {
-            setSeleccionados([...seleccionados, id]) // Add at end = order of click
+            setSeleccionados([...seleccionados, id])
         }
     }
     const toggleAll = () => {
@@ -62,57 +68,73 @@ export default function RepartoPage() {
 
     const generarPDFPlanilla = () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-        let y = 20
 
-        doc.setFontSize(20); doc.setFont('helvetica', 'bold')
-        doc.text('PLANILLA DE REPARTO', 105, y, { align: 'center' }); y += 8
-        doc.setFontSize(11); doc.setFont('helvetica', 'normal')
-        const fmtLocal = (d: string) => d.split('-').reverse().join('/')
-        doc.text(`Del ${fmtLocal(desde)} al ${fmtLocal(hasta)}`, 105, y, { align: 'center' }); y += 6
-        doc.text(`${pedidosSel.length} pedidos`, 105, y, { align: 'center' }); y += 8
-        doc.line(20, y, 190, y); y += 6
+        const drawTitleAndHeader = () => {
+            let y = 20
+            doc.setFontSize(20); doc.setFont('helvetica', 'bold')
+            doc.text('PLANILLA DE REPARTO', 105, y, { align: 'center' }); y += 8
+            doc.setFontSize(11); doc.setFont('helvetica', 'normal')
+            const fmtLocal = (d: string) => d.split('-').reverse().join('/')
+            doc.text(`Del ${fmtLocal(desde)} al ${fmtLocal(hasta)}`, 105, y, { align: 'center' }); y += 6
+            doc.text(`${pedidosSel.length} pedidos`, 105, y, { align: 'center' }); y += 8
+            doc.line(15, y, 195, y); y += 6
 
-        // Table header
-        doc.setFillColor(245, 246, 248)
-        doc.rect(15, y - 4, 180, 8, 'F')
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
-        doc.text('#', 17, y)
-        doc.text('FECHA', 24, y)
-        doc.text('N°', 48, y)
-        doc.text('CLIENTE', 61, y)
-        doc.text('SUBTOTAL', 120, y)
-        doc.text('SALDO ANT.', 148, y)
-        doc.text('TOTAL', 178, y)
-        y += 6; doc.line(15, y, 195, y); y += 5
+            doc.setFillColor(245, 246, 248)
+            doc.rect(15, y - 4, 180, 8, 'F')
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+            doc.text('#', 17, y)
+            doc.text('FECHA', 24, y)
+            doc.text('N°', 48, y)
+            doc.text('CLIENTE', 61, y)
+            doc.text('SUBTOTAL', 140, y, { align: 'right' })
+            doc.text('SALDO ANT.', 168, y, { align: 'right' })
+            doc.text('TOTAL', 193, y, { align: 'right' })
+            y += 6; doc.line(15, y, 195, y); y += 5
+            return y
+        }
 
+        let y = drawTitleAndHeader()
         doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
         let orden = 1
+
         for (const p of pedidosSel) {
-            if (y > 265) { doc.addPage(); y = 20 }
-            const subtotal = Number(p.total)
-            const saldo = Number(p.saldoAnterior)
+            if (y > 260) {
+                doc.addPage()
+                y = drawTitleAndHeader()
+            }
+            const subtotal = round2(Number(p.total))
+            const saldo = round2(Number(p.saldoAnterior))
+            const totalF = round2(subtotal + saldo)
+
             doc.setFont('helvetica', 'bold')
             doc.text(`${orden}°`, 17, y)
             doc.setFont('helvetica', 'normal')
             doc.text(formatDate(p.createdAt), 24, y)
             doc.text(`#${p.numero}`, 48, y)
-            doc.text(p.cliente.nombre.substring(0, 25), 61, y)
-            doc.text(formatCurrency(subtotal), 120, y)
-            doc.text(formatCurrency(saldo), 148, y)
+            doc.text((p.cliente?.nombre || '—').substring(0, 32), 61, y)
+
+            doc.text(formatCurrency(subtotal), 140, y, { align: 'right' })
+            doc.text(formatCurrency(saldo), 168, y, { align: 'right' })
+
             doc.setFont('helvetica', 'bold')
-            doc.text(formatCurrency(subtotal + saldo), 178, y)
+            doc.text(formatCurrency(totalF), 193, y, { align: 'right' })
             doc.setFont('helvetica', 'normal')
+
             y += 6
             orden++
         }
 
-        // Totales
+        if (y > 255) {
+            doc.addPage()
+            y = drawTitleAndHeader()
+        }
+
         y += 2; doc.setLineWidth(0.5); doc.line(15, y, 195, y); y += 7
         doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
         doc.text('TOTALES', 61, y)
-        doc.text(formatCurrency(totalSubtotal), 120, y)
-        doc.text(formatCurrency(totalSaldo), 148, y)
-        doc.text(formatCurrency(totalGeneral), 178, y)
+        doc.text(formatCurrency(totalSubtotal), 140, y, { align: 'right' })
+        doc.text(formatCurrency(totalSaldo), 168, y, { align: 'right' })
+        doc.text(formatCurrency(totalGeneral), 193, y, { align: 'right' })
 
         window.open(doc.output('bloburl'), '_blank')
     }
@@ -169,7 +191,7 @@ export default function RepartoPage() {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style={{ width: 36 }}><input type="checkbox" checked={seleccionados.length === pedidos.length} onChange={toggleAll} /></th>
+                                        <th style={{ width: 36 }}><input type="checkbox" checked={pedidos.length > 0 && seleccionados.length === pedidos.length} onChange={toggleAll} /></th>
                                         <th style={{ width: 40 }}>Orden</th>
                                         <th>Fecha</th>
                                         <th>N° Pedido</th>
@@ -181,8 +203,8 @@ export default function RepartoPage() {
                                 </thead>
                                 <tbody>
                                     {pedidos.map(p => {
-                                        const subtotal = Number(p.total)
-                                        const saldo = Number(p.saldoAnterior)
+                                        const subtotal = round2(Number(p.total))
+                                        const saldo = round2(Number(p.saldoAnterior))
                                         const orden = getOrden(p.id)
                                         return (
                                             <tr key={p.id} style={{ opacity: selSet.has(p.id) ? 1 : 0.4 }}>
@@ -194,7 +216,7 @@ export default function RepartoPage() {
                                                 </td>
                                                 <td style={{ fontSize: 13 }}>{formatDate(p.createdAt)}</td>
                                                 <td><strong>#{p.numero}</strong></td>
-                                                <td>{p.cliente.nombre}</td>
+                                                <td>{p.cliente?.nombre || '—'}</td>
                                                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(subtotal)}</td>
                                                 <td style={{ textAlign: 'right', color: saldo > 0 ? 'var(--red)' : 'var(--text-muted)' }}>{formatCurrency(saldo)}</td>
                                                 <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>{formatCurrency(subtotal + saldo)}</td>

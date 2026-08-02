@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, round2 } from '@/lib/utils'
 import { generarReciboPDF } from '@/lib/pdf'
 import jsPDF from 'jspdf'
 
@@ -28,31 +28,27 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
     const [loadingEdit, setLoadingEdit] = useState(false)
 
     // Calculate running balance backwards from saldoActual (through ALL movements first, then filter)
-    // movimientos are newest-first from API
     type MovConSaldo = Movimiento & { saldoAnterior: number; saldoDespues: number }
     const allMovsConSaldo: MovConSaldo[] = []
-    let saldoRunner = saldoActual
+    let saldoRunner = round2(saldoActual)
     for (let i = 0; i < movimientos.length; i++) {
         const m = movimientos[i]
         const montoBruto = Number(m.monto)
-        const saldoDespues = saldoRunner
-        // Undo the movement to get saldoAnterior
+        const saldoDespues = round2(saldoRunner)
+
         if (m.tipo === 'pago') {
-            saldoRunner = saldoRunner + montoBruto // undo payment (was subtracted)
+            saldoRunner = round2(saldoRunner + montoBruto)
         } else if (m.tipo === 'ajuste') {
-            // Ajuste sets saldo to an absolute value — can't reverse
-            saldoRunner = saldoDespues
+            saldoRunner = round2(saldoRunner - montoBruto)
         } else {
             // cargo
-            saldoRunner = saldoRunner - montoBruto // undo charge (was added)
+            saldoRunner = round2(saldoRunner - montoBruto)
         }
-        allMovsConSaldo.push({ ...m, saldoAnterior: saldoRunner, saldoDespues })
+        allMovsConSaldo.push({ ...m, saldoAnterior: round2(saldoRunner), saldoDespues })
     }
 
-    // Identificar el ID del ÚLTIMO pago registrado para permitir edición
     const ultimoPagoId = allMovsConSaldo.find(m => m.tipo === 'pago')?.id
 
-    // Filter by date
     const movsConSaldo = allMovsConSaldo.filter(m => {
         const fecha = new Date(m.createdAt)
         if (desde && fecha < new Date(desde)) return false
@@ -110,36 +106,42 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
         let y = 20
 
-        // Header
-        doc.setFontSize(18); doc.setFont('helvetica', 'bold')
-        doc.text('DETALLE DE CUENTA CORRIENTE', 105, y, { align: 'center' }); y += 8
-        doc.setFontSize(12); doc.setFont('helvetica', 'normal')
-        doc.text(`Cliente: ${clienteNombre}`, 105, y, { align: 'center' }); y += 6
-        
-        const fechaDesde = desde ? desde.split('-').reverse().join('/') : 'inicio'
-        const fechaHasta = hasta ? hasta.split('-').reverse().join('/') : 'hoy'
-        doc.setFontSize(10)
-        doc.text(`Período: ${fechaDesde} al ${fechaHasta}`, 105, y, { align: 'center' }); y += 5
-        doc.text(`Generado: ${new Date().toLocaleDateString('es-AR')}`, 105, y, { align: 'center' }); y += 6
-        doc.setDrawColor(200); doc.line(15, y, 195, y); y += 6
+        const drawHeader = () => {
+            doc.setFontSize(18); doc.setFont('helvetica', 'bold')
+            doc.text('DETALLE DE CUENTA CORRIENTE', 105, 20, { align: 'center' })
+            doc.setFontSize(12); doc.setFont('helvetica', 'normal')
+            doc.text(`Cliente: ${clienteNombre}`, 105, 26, { align: 'center' })
+            
+            const fechaDesde = desde ? desde.split('-').reverse().join('/') : 'inicio'
+            const fechaHasta = hasta ? hasta.split('-').reverse().join('/') : 'hoy'
+            doc.setFontSize(10)
+            doc.text(`Período: ${fechaDesde} al ${fechaHasta}`, 105, 31, { align: 'center' })
+            doc.text(`Generado: ${new Date().toLocaleDateString('es-AR')}`, 105, 36, { align: 'center' })
+            doc.setDrawColor(200); doc.line(15, 40, 195, 40)
 
-        // Table header
-        doc.setFillColor(245, 246, 248)
-        doc.rect(15, y - 4, 180, 8, 'F')
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
-        doc.text('FECHA', 17, y)
-        doc.text('TIPO', 40, y)
-        doc.text('DESCRIPCIÓN', 58, y)
-        doc.text('SALDO ANT.', 118, y)
-        doc.text('MONTO', 148, y)
-        doc.text('SALDO REST.', 172, y)
-        y += 6; doc.setDrawColor(200); doc.line(15, y, 195, y); y += 5
+            doc.setFillColor(245, 246, 248)
+            doc.rect(15, 42, 180, 8, 'F')
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+            doc.text('FECHA', 17, 47)
+            doc.text('TIPO', 40, 47)
+            doc.text('DESCRIPCIÓN', 58, 47)
+            doc.text('SALDO ANT.', 138, 47, { align: 'right' })
+            doc.text('MONTO', 168, 47, { align: 'right' })
+            doc.text('SALDO REST.', 193, 47, { align: 'right' })
+            doc.setDrawColor(200); doc.line(15, 51, 195, 51)
+        }
 
-        // Rows
+        drawHeader()
+        y = 56
+
         const movsOrdenados = [...movsSel].reverse()
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
         for (const m of movsOrdenados) {
-            if (y > 265) { doc.addPage(); y = 20 }
+            if (y > 265) {
+                doc.addPage()
+                drawHeader()
+                y = 56
+            }
             const montoBruto = Number(m.monto)
             const montoFirmado = m.tipo === 'pago' ? -montoBruto : montoBruto
 
@@ -147,25 +149,25 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
             doc.setFont('helvetica', 'bold')
             doc.text(m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1), 40, y)
             doc.setFont('helvetica', 'normal')
-            doc.text((m.descripcion || '—').substring(0, 25), 58, y)
+            doc.text((m.descripcion || '—').substring(0, 32), 58, y)
 
             // Saldo anterior
             if (m.saldoAnterior > 0) doc.setTextColor(220, 38, 38)
             else if (m.saldoAnterior < 0) doc.setTextColor(22, 163, 74)
-            doc.text(formatCurrency(m.saldoAnterior), 118, y)
+            doc.text(formatCurrency(m.saldoAnterior), 138, y, { align: 'right' })
             doc.setTextColor(0)
 
             // Monto
             if (montoFirmado > 0) doc.setTextColor(220, 38, 38)
             else if (montoFirmado < 0) doc.setTextColor(22, 163, 74)
-            doc.text(formatCurrency(montoFirmado), 148, y)
+            doc.text(formatCurrency(montoFirmado), 168, y, { align: 'right' })
             doc.setTextColor(0)
 
             // Saldo restante
             doc.setFont('helvetica', 'bold')
             if (m.saldoDespues > 0) doc.setTextColor(220, 38, 38)
             else if (m.saldoDespues < 0) doc.setTextColor(22, 163, 74)
-            doc.text(formatCurrency(m.saldoDespues), 172, y)
+            doc.text(formatCurrency(m.saldoDespues), 193, y, { align: 'right' })
             doc.setTextColor(0)
             doc.setFont('helvetica', 'normal')
 
@@ -311,7 +313,7 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
                                                             setEditingPago({ id: m.id, monto: montoBruto.toString(), nota: notaLimpia })
                                                         }}
                                                     >
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 4H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                                     </button>
                                                 )}
                                             </div>

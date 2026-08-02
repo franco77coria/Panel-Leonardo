@@ -3,11 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { formatCurrency, formatDate, formatDateTime, getSaldoStatus, getEstadoBadge } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDateTime, getSaldoStatus, getEstadoBadge, round2 } from '@/lib/utils'
+import { renderBoletaEnDocumento } from '@/lib/pdf'
 import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 
-// Config - teléfono de Leo
 const TELEFONO_LEO = '11 3808-8724'
 const WA_LINK = 'https://wa.me/5491138088724'
 
@@ -36,19 +36,21 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
     const calcSubtotal = (item: typeof items[0]) => {
         const precio = Number(item.precioUnitario)
         const desc = Number(item.descuento) || 0
-        const precioConDesc = precio * (1 - desc / 100)
-        return Number(item.cantidad) * precioConDesc
+        const precioConDesc = round2(precio * (1 - desc / 100))
+        return round2(Number(item.cantidad) * precioConDesc)
     }
 
-    const subtotalGeneral = items.reduce((s, i) => s + calcSubtotal(i), 0)
-    const saldoAnterior = Number(pedido.saldoAnterior) || 0
-    const totalFinal = subtotalGeneral + saldoAnterior
+    const subtotalGeneral = round2(items.reduce((s, i) => s + calcSubtotal(i), 0))
+    const saldoAnterior = round2(pedido.saldoAnterior)
+    const totalFinal = round2(subtotalGeneral + saldoAnterior)
     const badge = getEstadoBadge(pedido.estado)
 
     const searchArticulos = async (q: string) => {
         if (!q) return setArticuloResults([])
-        const res = await fetch(`/api/articulos?q=${q}`)
-        setArticuloResults(await res.json())
+        try {
+            const res = await fetch(`/api/articulos?q=${q}`)
+            if (res.ok) setArticuloResults(await res.json())
+        } catch { /* Error ignorado */ }
     }
 
     const addItem = (a: Articulo) => {
@@ -56,41 +58,68 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         if (exists) {
             setItems(items.map(i => i.articuloId === a.id ? { ...i, cantidad: Number(i.cantidad) + 1 } : i))
         } else {
-            setItems([{ id: `new-${a.id}`, articuloId: a.id, articulo: a, cantidad: 1, precioUnitario: Number((getPrecioBase(a) * listaPrecio).toFixed(2)), descuento: 0, estadoItem: '' }, ...items])
+            setItems([{ id: `new-${a.id}`, articuloId: a.id, articulo: a, cantidad: 1, precioUnitario: round2(getPrecioBase(a) * listaPrecio), descuento: 0, estadoItem: '' }, ...items])
         }
         setArticuloQuery(''); setArticuloResults([])
     }
 
     const handleSave = async () => {
         setLoading(true)
-        const res = await fetch(`/api/pedidos/${pedido.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                items: items.map(i => ({ articuloId: i.articuloId, cantidad: Number(i.cantidad), precioUnitario: Number(i.precioUnitario), descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || null })),
-                estado: estadoPedido,
-                notas: notasPedido,
-            }),
-        })
-        const updated = await res.json()
-        setPedido(updated)
-        setEstadoPedido(updated.estado)
-        setNotasPedido(updated.notas || '')
-        setItems(updated.items.map((i: Item) => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' })))
-        setLoading(false); setEditing(false)
+        try {
+            const res = await fetch(`/api/pedidos/${pedido.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: items.map(i => ({ articuloId: i.articuloId, cantidad: Number(i.cantidad), precioUnitario: Number(i.precioUnitario), descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || null })),
+                    estado: estadoPedido,
+                    notas: notasPedido,
+                }),
+            })
+            const updated = await res.json()
+            if (!res.ok || !updated || !updated.items) {
+                alert(updated?.error || 'Error al guardar los cambios del pedido.')
+                setLoading(false)
+                return
+            }
+            setPedido(updated)
+            setEstadoPedido(updated.estado)
+            setNotasPedido(updated.notas || '')
+            setItems(updated.items.map((i: Item) => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' })))
+            setEditing(false)
+        } catch {
+            alert('Error de conexión al guardar el pedido.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     const handleCerrar = async () => {
         if (!confirm(`¿Cerrar el pedido #${pedido.numero}? Esto actualizará la cuenta corriente de ${pedido.cliente.nombre}.`)) return
         setLoading(true)
-        await fetch(`/api/pedidos/${pedido.id}/cerrar`, { method: 'POST' })
-        setLoading(false); router.refresh(); window.location.reload()
+        try {
+            const res = await fetch(`/api/pedidos/${pedido.id}/cerrar`, { method: 'POST' })
+            if (!res.ok) {
+                const err = await res.json()
+                alert(err?.error || 'Error al cerrar pedido.')
+                setLoading(false)
+                return
+            }
+            router.refresh(); window.location.reload()
+        } catch {
+            alert('Error al cerrar el pedido.')
+            setLoading(false)
+        }
     }
 
     const handleEliminar = async () => {
         if (!confirm('¿Eliminar este pedido?')) return
-        await fetch(`/api/pedidos/${pedido.id}`, { method: 'DELETE' })
-        router.push('/pedidos')
+        try {
+            const res = await fetch(`/api/pedidos/${pedido.id}`, { method: 'DELETE' })
+            if (!res.ok) return alert('Error al eliminar el pedido.')
+            router.push('/pedidos')
+        } catch {
+            alert('Error al eliminar el pedido.')
+        }
     }
 
     const handleInlinePriceSave = async (itemId: string) => {
@@ -105,235 +134,40 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
         setEditingPriceItemId(null)
 
         setLoading(true)
-        const res = await fetch(`/api/pedidos/${pedido.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                items: updatedItems.map(i => ({ articuloId: i.articuloId, cantidad: Number(i.cantidad), precioUnitario: Number(i.precioUnitario), descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || null })),
-                estado: pedido.estado,
-                notas: pedido.notas,
-            }),
-        })
-        const updated = await res.json()
-        setPedido(updated)
-        setItems(updated.items.map((i: Item) => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' })))
-        setLoading(false)
+        try {
+            const res = await fetch(`/api/pedidos/${pedido.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: updatedItems.map(i => ({ articuloId: i.articuloId, cantidad: Number(i.cantidad), precioUnitario: Number(i.precioUnitario), descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || null })),
+                    estado: pedido.estado,
+                    notas: pedido.notas,
+                }),
+            })
+            const updated = await res.json()
+            if (!res.ok || !updated || !updated.items) {
+                alert(updated?.error || 'Error al guardar el precio.')
+                setLoading(false)
+                return
+            }
+            setPedido(updated)
+            setItems(updated.items.map((i: Item) => ({ ...i, descuento: Number(i.descuento) || 0, estadoItem: i.estadoItem || '' })))
+        } catch {
+            alert('Error al guardar el precio.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     // ==================== PDF BOLETA ====================
     const generarPDF = async () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-        const pw = 210, margin = 12
-        const cw = pw - 2 * margin // content width
-        let y = margin
-
-        // ---------- QR Code WhatsApp ----------
         let qrDataUrl = ''
         try {
             qrDataUrl = await QRCode.toDataURL(WA_LINK, { width: 200, margin: 1, color: { dark: '#1a2332', light: '#ffffff' } })
         } catch { /* QR error */ }
 
-        // ---------- HEADER: Info + QR ----------
-        // PAPELERA - grande y bold
-        doc.setFontSize(26); doc.setFont('helvetica', 'bold')
-        doc.text('Papelera', margin + 3, y + 8)
-
-        // Leo + teléfono
-        doc.setFontSize(14); doc.setFont('helvetica', 'normal')
-        doc.text('Leo', margin + 3, y + 16)
-        doc.setFontSize(10)
-        doc.text(TELEFONO_LEO, margin + 15, y + 16)
-
-        // QR a la derecha
-        if (qrDataUrl) {
-            doc.addImage(qrDataUrl, 'PNG', pw - margin - 22, y, 22, 22)
-            doc.setFontSize(6); doc.setFont('helvetica', 'normal')
-            doc.text('WhatsApp', pw - margin - 11, y + 24, { align: 'center' })
-        }
-
-        // ---------- Rectángulo superior dividido en 3 ----------
-        y += 26
-        const boxH = 14
-        const col1W = cw * 0.4, col2W = cw * 0.3, col3W = cw * 0.3
-
-        // Box 1: "X" Documento no válido como factura
-        doc.setDrawColor(0); doc.setLineWidth(0.3)
-        doc.rect(margin, y, col1W, boxH)
-        doc.setFontSize(16); doc.setFont('helvetica', 'bold')
-        doc.text('X', margin + 4, y + 6)
-        doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-        doc.text('Documento no válido', margin + 12, y + 5)
-        doc.text('como factura', margin + 12, y + 9)
-
-        // Box 2: Número del pedido - grande
-        doc.rect(margin + col1W, y, col2W, boxH)
-        doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-        doc.text('PRESUPUESTO N°', margin + col1W + 3, y + 5)
-        doc.setFontSize(18); doc.setFont('helvetica', 'bold')
-        doc.text(String(pedido.numero).padStart(6, '0'), margin + col1W + 3, y + 12)
-
-        // Box 3: Fecha y hora
-        const fechaEmision = new Date(pedido.createdAt)
-        doc.rect(margin + col1W + col2W, y, col3W, boxH)
-        doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-        doc.text('Fecha:', margin + col1W + col2W + 3, y + 5)
-        doc.setFont('helvetica', 'bold')
-        doc.text(fechaEmision.toLocaleDateString('es-AR'), margin + col1W + col2W + 15, y + 5)
-        doc.setFont('helvetica', 'normal')
-        doc.text('Hora:', margin + col1W + col2W + 3, y + 10)
-        doc.setFont('helvetica', 'bold')
-        doc.text(fechaEmision.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), margin + col1W + col2W + 15, y + 10)
-
-        // ---------- CLIENTE ----------
-        y += boxH + 4
-        doc.setFillColor(245, 246, 248)
-        doc.rect(margin, y, cw, 10, 'F')
-        doc.rect(margin, y, cw, 10)
-        doc.setFontSize(10); doc.setFont('helvetica', 'bold')
-        doc.text('CLIENTE:', margin + 3, y + 7)
-        doc.setFontSize(14)
-        doc.text(pedido.cliente.nombre, margin + 28, y + 7)
-
-        // ---------- TABLA DE ITEMS ----------
-        y += 14
-        const cols = [
-            { label: 'Cant.', w: 12, align: 'center' as const },
-            { label: 'Descripción', w: 76, align: 'left' as const },
-            { label: 'Estado', w: 18, align: 'center' as const },
-            { label: 'P. Unit.', w: 20, align: 'right' as const },
-            { label: '% Dto.', w: 12, align: 'center' as const },
-            { label: 'P. c/Dto.', w: 22, align: 'right' as const },
-            { label: 'Subtotal', w: 24, align: 'right' as const },
-        ]
-        const totalColW = cols.reduce((s, c) => s + c.w, 0)
-
-        // Header de tabla
-        doc.setFillColor(50, 50, 60)
-        doc.rect(margin, y, totalColW, 7, 'F')
-        doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(255)
-        let cx = margin
-        for (const col of cols) {
-            const tx = col.align === 'right' ? cx + col.w - 2 : col.align === 'center' ? cx + col.w / 2 : cx + 2
-            doc.text(col.label, tx, y + 5, { align: col.align === 'left' ? undefined : col.align })
-            cx += col.w
-        }
-        doc.setTextColor(0)
-        y += 7
-
-        // Rows
-        doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-        let rowNum = 0
-        for (const item of items) {
-            if (y > 255) { doc.addPage(); y = margin }
-
-            const cant = Number(item.cantidad)
-            const precio = Number(item.precioUnitario)
-            const desc = Number(item.descuento) || 0
-            const precioConDesc = precio * (1 - desc / 100)
-            const subtotal = cant * precioConDesc
-
-            // Zebra stripe
-            if (rowNum % 2 === 0) {
-                doc.setFillColor(250, 250, 252)
-                doc.rect(margin, y, totalColW, 6, 'F')
-            }
-            doc.rect(margin, y, totalColW, 6)
-
-            cx = margin
-            // Cantidad
-            doc.text(String(cant), cx + cols[0].w / 2, y + 4.5, { align: 'center' })
-            cx += cols[0].w
-            // Descripción
-            doc.setFont('helvetica', 'bold')
-            doc.text(item.articulo.nombre.substring(0, 48), cx + 2, y + 4.5)
-            doc.setFont('helvetica', 'normal')
-            cx += cols[1].w
-            // Estado
-            if (item.estadoItem) {
-                doc.setFontSize(7)
-                doc.text(item.estadoItem.substring(0, 12), cx + cols[2].w / 2, y + 4.5, { align: 'center' })
-                doc.setFontSize(8)
-            }
-            cx += cols[2].w
-            // Precio unitario
-            doc.text(formatCurrency(precio), cx + cols[3].w - 2, y + 4.5, { align: 'right' })
-            cx += cols[3].w
-            // % Descuento
-            if (desc > 0) {
-                doc.text(`${desc}%`, cx + cols[4].w / 2, y + 4.5, { align: 'center' })
-            }
-            cx += cols[4].w
-            // Precio con descuento
-            if (desc > 0) {
-                doc.text(formatCurrency(precioConDesc), cx + cols[5].w - 2, y + 4.5, { align: 'right' })
-            } else {
-                doc.text('-', cx + cols[5].w / 2, y + 4.5, { align: 'center' })
-            }
-            cx += cols[5].w
-            // Subtotal
-            doc.setFont('helvetica', 'bold')
-            doc.text(formatCurrency(subtotal), cx + cols[6].w - 2, y + 4.5, { align: 'right' })
-            doc.setFont('helvetica', 'normal')
-
-            y += 6
-            rowNum++
-        }
-
-        // ---------- FOOTER: Subtotal / Saldo / TOTAL ----------
-        y = y + 4
-        const footerX = margin + totalColW - 60
-
-        // Subtotal general
-        doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-        doc.text('SUBTOTAL:', footerX, y + 5)
-        doc.setFont('helvetica', 'bold')
-        doc.text(formatCurrency(subtotalGeneral), margin + totalColW - 2, y + 5, { align: 'right' })
-
-        // Saldo anterior
-        y += 6
-        doc.setFont('helvetica', 'normal')
-        if (saldoAnterior > 0) {
-            doc.text('SALDO (DEBE):', footerX, y + 5)
-            doc.setFont('helvetica', 'bold')
-            doc.setTextColor(220, 38, 38)
-            doc.text(formatCurrency(saldoAnterior), margin + totalColW - 2, y + 5, { align: 'right' })
-        } else if (saldoAnterior < 0) {
-            doc.text('SALDO (A FAVOR):', footerX, y + 5)
-            doc.setFont('helvetica', 'bold')
-            doc.setTextColor(22, 163, 74)
-            doc.text(`-${formatCurrency(Math.abs(saldoAnterior))}`, margin + totalColW - 2, y + 5, { align: 'right' })
-        } else {
-            doc.text('SALDO:', footerX, y + 5)
-            doc.setFont('helvetica', 'bold')
-            doc.text(formatCurrency(0), margin + totalColW - 2, y + 5, { align: 'right' })
-        }
-        doc.setTextColor(0)
-
-        // TOTAL - grande y destacado
-        y += 8
-        doc.setFillColor(50, 50, 60)
-        doc.rect(footerX - 2, y, 62, 10, 'F')
-        doc.setTextColor(255)
-        doc.setFontSize(12); doc.setFont('helvetica', 'bold')
-        doc.text('TOTAL:', footerX + 2, y + 7)
-        doc.setFontSize(14)
-        doc.text(formatCurrency(totalFinal), margin + totalColW - 2, y + 7, { align: 'right' })
-        doc.setTextColor(0)
-
-        // ---------- RECUADRO: Enmarcar toda la boleta ----------
-        const tableStartY = 198 // aprox. donde empieza la sección CLIENTE
-        const frameTop = 38 // justo debajo del header
-        const frameBottom = y + 12
-        doc.setDrawColor(180); doc.setLineWidth(0.4)
-        doc.rect(margin, frameTop, totalColW, frameBottom - frameTop)
-
-        // Notas
-        if (pedido.notas) {
-            y += 14
-            doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-            doc.text(`Notas: ${pedido.notas}`, margin, y)
-        }
-
+        await renderBoletaEnDocumento(doc, { ...pedido, items, notas: notasPedido }, qrDataUrl)
         window.open(doc.output('bloburl'), '_blank')
     }
 
@@ -448,119 +282,109 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                                 <th style={{ width: 60 }}>Cant.</th>
                                 <th>Descripción</th>
                                 <th style={{ width: 100 }}>Estado</th>
-                                <th className="hide-mobile">P. Unit.</th>
-                                <th style={{ width: 65 }}>% Dto.</th>
-                                <th className="hide-mobile">P. c/Dto.</th>
-                                <th>Subtotal</th>
-                                {editing && <th style={{ width: 36 }}></th>}
+                                <th style={{ width: 110, textAlign: 'right' }}>P. Unitario</th>
+                                <th style={{ width: 70, textAlign: 'center' }}>% Dto</th>
+                                <th style={{ width: 110, textAlign: 'right' }}>P. c/Dto</th>
+                                <th style={{ width: 120, textAlign: 'right' }}>Subtotal</th>
+                                {editing && <th style={{ width: 40 }}></th>}
                             </tr>
                         </thead>
                         <tbody>
-                            {items.map(item => {
+                            {items.map((item, idx) => {
+                                const cant = Number(item.cantidad)
                                 const precio = Number(item.precioUnitario)
                                 const desc = Number(item.descuento) || 0
-                                const precioConDesc = precio * (1 - desc / 100)
-                                const sub = calcSubtotal(item)
+                                const precioConDesc = round2(precio * (1 - desc / 100))
+                                const subtotal = calcSubtotal(item)
+
                                 return (
-                                    <tr key={item.id}>
+                                    <tr key={item.id || idx}>
                                         <td>
                                             {editing ? (
-                                                <input type="number" step="0.001" value={item.cantidad}
-                                                    onChange={e => setItems(items.map(i => i.id === item.id ? { ...i, cantidad: parseFloat(e.target.value) || 0 } : i))}
-                                                    style={{ width: 55, padding: '4px 6px', fontWeight: 700, textAlign: 'center', color: item.cantidad < 0 ? 'var(--red)' : 'inherit' }} />
-                                            ) : <strong style={{ color: item.cantidad < 0 ? 'var(--red)' : 'inherit' }}>{Number(item.cantidad)}</strong>}
+                                                <input type="number" step="1" min="0.001" value={item.cantidad}
+                                                    onChange={e => {
+                                                        const val = parseFloat(e.target.value) || 0
+                                                        setItems(items.map((it, i) => i === idx ? { ...it, cantidad: val } : it))
+                                                    }}
+                                                    style={{ width: 60, padding: '4px 6px', fontSize: 13 }} />
+                                            ) : (
+                                                <strong>{cant}</strong>
+                                            )}
                                         </td>
-                                        <td><strong>{item.articulo.nombre}</strong></td>
+                                        <td>
+                                            <strong>{item.articulo.nombre}</strong>
+                                            {item.articulo.rubro && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>({item.articulo.rubro.nombre})</span>}
+                                        </td>
                                         <td>
                                             {editing ? (
                                                 <select
                                                     value={item.estadoItem || ''}
                                                     onChange={e => {
-                                                        const nuevoEstado = e.target.value
-                                                        let nuevaCant = item.cantidad
-                                                        let nuevoPrecio = item.precioUnitario
-                                                        if (nuevoEstado === 'Devolución' && nuevaCant > 0) nuevaCant = -nuevaCant
-                                                        if (nuevoEstado !== 'Devolución' && nuevaCant < 0) nuevaCant = Math.abs(nuevaCant)
-                                                        if (nuevoEstado === 'Sin Cargo') nuevoPrecio = 0
-                                                        setItems(items.map(i => i.id === item.id ? { ...i, estadoItem: nuevoEstado, cantidad: nuevaCant, precioUnitario: nuevoPrecio } : i))
+                                                        const val = e.target.value
+                                                        setItems(items.map((it, i) => i === idx ? {
+                                                            ...it,
+                                                            estadoItem: val,
+                                                            precioUnitario: val === 'Sin Cargo' ? 0 : it.precioUnitario
+                                                        } : it))
                                                     }}
-                                                    style={{ width: 95, padding: '4px 6px', fontSize: 12, border: '1px solid var(--border)' }}
+                                                    style={{ fontSize: 11, padding: '2px 4px' }}
                                                 >
-                                                    <option value="">—</option>
-                                                    <option value="Entregado">Entregado</option>
-                                                    <option value="Cambio">Cambio</option>
-                                                    <option value="Devolución">Devolución</option>
+                                                    <option value="">Entregado</option>
                                                     <option value="Sin Cargo">Sin Cargo</option>
+                                                    <option value="Falta Entregar">Falta Entregar</option>
+                                                    <option value="Devolución">Devolución</option>
                                                 </select>
                                             ) : (
-                                                item.estadoItem ? <span className="badge badge-gray" style={{ fontSize: 11 }}>{item.estadoItem}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                                item.estadoItem ? <span className="badge badge-yellow" style={{ fontSize: 11 }}>{item.estadoItem}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
                                             )}
                                         </td>
-                                        <td className="hide-mobile">
-                                            {editing ? (
-                                                <input type="number" step="0.01" value={item.precioUnitario}
-                                                    onChange={e => setItems(items.map(i => i.id === item.id ? { ...i, precioUnitario: parseFloat(e.target.value) || 0 } : i))}
-                                                    style={{ width: 75, padding: '4px 6px', fontSize: 12, textAlign: 'right' }} />
-                                            ) : editingPriceItemId === item.id ? (
-                                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                                    <span style={{ color: 'var(--text-muted)' }}>$</span>
+                                        <td style={{ textAlign: 'right' }}>
+                                            {!editing && editingPriceItemId === item.id ? (
+                                                <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
                                                     <input
                                                         type="number"
                                                         step="0.01"
                                                         value={editingPriceValue}
                                                         onChange={e => setEditingPriceValue(e.target.value)}
-                                                        onKeyDown={e => {
-                                                            if (e.key === 'Enter') handleInlinePriceSave(item.id)
-                                                            if (e.key === 'Escape') setEditingPriceItemId(null)
-                                                        }}
-                                                        onBlur={() => handleInlinePriceSave(item.id)}
+                                                        onKeyDown={e => { if (e.key === 'Enter') handleInlinePriceSave(item.id); if (e.key === 'Escape') setEditingPriceItemId(null) }}
                                                         autoFocus
-                                                        style={{ width: 80, padding: '3px 6px', fontSize: 13, border: '1px solid var(--primary-light)', borderRadius: 4, fontWeight: 'bold' }}
+                                                        style={{ width: 80, padding: '2px 4px', fontSize: 12, textAlign: 'right' }}
                                                     />
+                                                    <button onClick={() => handleInlinePriceSave(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', padding: 0 }} title="Guardar">{IconCheck}</button>
+                                                    <button onClick={() => setEditingPriceItemId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }} title="Cancelar">{IconX}</button>
                                                 </div>
                                             ) : (
-                                                <span
-                                                    onClick={() => {
-                                                        if (pedido.estado !== 'cerrado') {
-                                                            setEditingPriceItemId(item.id)
-                                                            setEditingPriceValue(precio.toString())
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        cursor: pedido.estado !== 'cerrado' ? 'pointer' : 'default',
-                                                        color: pedido.estado !== 'cerrado' ? 'var(--primary)' : 'inherit',
-                                                        fontWeight: 600,
-                                                        borderBottom: pedido.estado !== 'cerrado' ? '1px dashed var(--primary-light)' : 'none',
-                                                        paddingBottom: 1,
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: 4,
-                                                    }}
-                                                    title={pedido.estado !== 'cerrado' ? 'Click para editar precio' : undefined}
-                                                >
-                                                    {formatCurrency(precio)}
-                                                    {pedido.estado !== 'cerrado' && (
-                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ opacity: 0.4 }}><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                                                    <span>{formatCurrency(precio)}</span>
+                                                    {!editing && pedido.estado !== 'cerrado' && (
+                                                        <button
+                                                            onClick={() => { setEditingPriceItemId(item.id); setEditingPriceValue(precio.toString()) }}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, display: 'flex', alignItems: 'center' }}
+                                                            title="Editar precio unitario"
+                                                        >
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                        </button>
                                                     )}
-                                                </span>
+                                                </div>
                                             )}
                                         </td>
-                                        <td>
+                                        <td style={{ textAlign: 'center' }}>
                                             {editing ? (
                                                 <input type="number" step="1" min="0" max="100" value={item.descuento}
-                                                    onChange={e => setItems(items.map(i => i.id === item.id ? { ...i, descuento: parseFloat(e.target.value) || 0 } : i))}
-                                                    style={{ width: 50, padding: '4px 6px', textAlign: 'center' }} />
+                                                    onChange={e => {
+                                                        const val = parseFloat(e.target.value) || 0
+                                                        setItems(items.map((it, i) => i === idx ? { ...it, descuento: val } : it))
+                                                    }}
+                                                    style={{ width: 50, padding: '4px 6px', fontSize: 13, textAlign: 'center' }} />
                                             ) : (
-                                                desc > 0 ? <span className="badge badge-green" style={{ fontSize: 11 }}>{desc}%</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                                desc > 0 ? <span className="badge badge-blue">{desc}%</span> : '—'
                                             )}
                                         </td>
-                                        <td className="hide-mobile">
-                                            {desc > 0 ? <span style={{ color: 'var(--green)' }}>{formatCurrency(precioConDesc)}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                                        </td>
-                                        <td><strong>{formatCurrency(sub)}</strong></td>
+                                        <td style={{ textAlign: 'right' }}>{desc > 0 ? formatCurrency(precioConDesc) : '—'}</td>
+                                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(subtotal)}</td>
                                         {editing && (
                                             <td>
-                                                <button onClick={() => setItems(items.filter(i => i.id !== item.id))} className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}>{IconX}</button>
+                                                <button onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)' }}>&times;</button>
                                             </td>
                                         )}
                                     </tr>
@@ -569,41 +393,37 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colSpan={editing ? 6 : 5} style={{ textAlign: 'right', fontWeight: 600, fontSize: 13 }}>SUBTOTAL</td>
-                                <td><strong>{formatCurrency(subtotalGeneral)}</strong></td>
+                                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700 }}>SUBTOTAL</td>
+                                <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 16, color: 'var(--primary-light)' }}>{formatCurrency(subtotalGeneral)}</td>
                                 {editing && <td></td>}
                             </tr>
                             {saldoAnterior !== 0 && (
                                 <tr>
-                                    <td colSpan={editing ? 6 : 5} style={{ textAlign: 'right', fontWeight: 600, fontSize: 13, color: saldoAnterior > 0 ? 'var(--red)' : 'var(--green)' }}>SALDO</td>
-                                    <td style={{ color: saldoAnterior > 0 ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{formatCurrency(saldoAnterior)}</td>
+                                    <td colSpan={6} style={{ textAlign: 'right', fontWeight: 600 }}>Saldo anterior ({saldoAnterior > 0 ? 'Debe' : 'A favor'})</td>
+                                    <td style={{ textAlign: 'right', fontWeight: 700, color: saldoAnterior > 0 ? 'var(--red)' : 'var(--green)' }}>
+                                        {saldoAnterior > 0 ? formatCurrency(saldoAnterior) : `-${formatCurrency(Math.abs(saldoAnterior))}`}
+                                    </td>
                                     {editing && <td></td>}
                                 </tr>
                             )}
-                            <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                                <td colSpan={editing ? 6 : 5} style={{ textAlign: 'right', fontWeight: 800, fontSize: 16 }}>TOTAL</td>
-                                <td><strong style={{ fontSize: 20 }}>{formatCurrency(totalFinal)}</strong></td>
+                            <tr style={{ background: 'var(--bg-hover)' }}>
+                                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 800, fontSize: 15 }}>TOTAL FINAL</td>
+                                <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 18, color: 'var(--primary)' }}>{formatCurrency(totalFinal)}</td>
                                 {editing && <td></td>}
                             </tr>
                         </tfoot>
                     </table>
                 </div>
 
-                {(pedido.notas || editing) && (
-                    <div className="card" style={{ marginTop: 16 }}>
-                        <div className="card-header">Notas</div>
-                        {editing ? (
-                            <textarea
-                                value={notasPedido}
-                                onChange={e => setNotasPedido(e.target.value)}
-                                style={{ width: '100%', padding: '10px', fontSize: 14, minHeight: 80, border: '1px solid var(--border)', borderRadius: 6 }}
-                                placeholder="Observaciones extras (opcional)..."
-                            />
-                        ) : (
-                            <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{pedido.notas}</p>
-                        )}
-                    </div>
-                )}
+                {/* Notas */}
+                <div className="card" style={{ marginTop: 16 }}>
+                    <div className="card-header">Notas del pedido</div>
+                    {editing ? (
+                        <textarea value={notasPedido} onChange={e => setNotasPedido(e.target.value)} rows={3} placeholder="Notas u observaciones..." style={{ width: '100%' }} />
+                    ) : (
+                        <p style={{ color: pedido.notas ? 'inherit' : 'var(--text-muted)', fontSize: 14 }}>{pedido.notas || 'Sin notas.'}</p>
+                    )}
+                </div>
             </div>
         </>
     )
