@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { formatCurrency } from '@/lib/utils'
+import { generarReciboPDF } from '@/lib/pdf'
 
 interface ClienteOption {
     id: string
@@ -18,6 +19,7 @@ export function PagoRapido() {
     const [nota, setNota] = useState('')
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState(false)
+    const [lastPagoInfo, setLastPagoInfo] = useState<{ clienteNombre: string; montoPago: number; notaPago: string; saldoAnterior: number; saldoNuevo: number } | null>(null)
     const [searching, setSearching] = useState(false)
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
@@ -45,6 +47,7 @@ export function PagoRapido() {
         setMonto('')
         setNota('')
         setSuccess(false)
+        setLastPagoInfo(null)
     }
 
     const handleOpen = () => { reset(); setOpen(true) }
@@ -66,16 +69,26 @@ export function PagoRapido() {
         if (!selected) return alert('Seleccioná un cliente')
         if (!monto || parseFloat(monto) <= 0) return alert('Ingresá un monto válido')
 
+        const montoVal = parseFloat(monto)
+        const saldoAnt = selected.saldo
+        const saldoNuev = saldoAnt - montoVal
+
         setLoading(true)
         const res = await fetch(`/api/clientes/${selected.id}/pagos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ monto: parseFloat(monto), nota }),
+            body: JSON.stringify({ monto: montoVal, nota }),
         })
 
         if (res.ok) {
+            setLastPagoInfo({
+                clienteNombre: selected.nombre,
+                montoPago: montoVal,
+                notaPago: nota,
+                saldoAnterior: saldoAnt,
+                saldoNuevo: saldoNuev,
+            })
             setSuccess(true)
-            setTimeout(() => { handleClose(); window.location.reload() }, 2000)
         } else {
             alert('Error al registrar el pago')
         }
@@ -110,12 +123,41 @@ export function PagoRapido() {
                         </div>
 
                         {success ? (
-                            <div className="alert alert-green" style={{ textAlign: 'center', padding: 24 }}>
-                                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Pago registrado</div>
-                                <div style={{ fontSize: 14 }}>
-                                    {formatCurrency(parseFloat(monto))} a <strong>{selected?.nombre}</strong>
+                            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                                <div className="alert alert-green" style={{ textAlign: 'center', padding: 16, marginBottom: 16 }}>
+                                    <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>¡Pago registrado con éxito!</div>
+                                    <div style={{ fontSize: 14 }}>
+                                        {formatCurrency(parseFloat(monto))} a <strong>{selected?.nombre}</strong>
+                                    </div>
+                                    {nota && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Detalle: {nota}</div>}
                                 </div>
-                                {nota && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{nota}</div>}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {lastPagoInfo && (
+                                        <button
+                                            className="btn btn-primary"
+                                            style={{ width: '100%', padding: '10px 0', fontSize: 14, fontWeight: 700 }}
+                                            onClick={() => {
+                                                generarReciboPDF(
+                                                    lastPagoInfo.clienteNombre,
+                                                    lastPagoInfo.montoPago,
+                                                    lastPagoInfo.notaPago,
+                                                    lastPagoInfo.saldoAnterior,
+                                                    lastPagoInfo.saldoNuevo
+                                                )
+                                            }}
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                                            Generar Recibo PDF
+                                        </button>
+                                    )}
+                                    <button
+                                        className="btn btn-secondary"
+                                        style={{ width: '100%' }}
+                                        onClick={() => { handleClose(); window.location.reload() }}
+                                    >
+                                        Cerrar y actualizar
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <>

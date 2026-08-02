@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { generarReciboPDF } from '@/lib/pdf'
 import jsPDF from 'jspdf'
 
 interface Movimiento {
@@ -23,6 +24,8 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
     const [desde, setDesde] = useState('')
     const [hasta, setHasta] = useState('')
     const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+    const [editingPago, setEditingPago] = useState<{ id: string; monto: string; nota: string } | null>(null)
+    const [loadingEdit, setLoadingEdit] = useState(false)
 
     // Calculate running balance backwards from saldoActual (through ALL movements first, then filter)
     // movimientos are newest-first from API
@@ -37,15 +40,19 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
         if (m.tipo === 'pago') {
             saldoRunner = saldoRunner + montoBruto // undo payment (was subtracted)
         } else if (m.tipo === 'ajuste') {
-            // Ajuste sets saldo to an absolute value — can't reverse, break chain
-            saldoRunner = saldoDespues // keep same (we don't know what was before)
+            // Ajuste sets saldo to an absolute value — can't reverse
+            saldoRunner = saldoDespues
         } else {
             // cargo
             saldoRunner = saldoRunner - montoBruto // undo charge (was added)
         }
         allMovsConSaldo.push({ ...m, saldoAnterior: saldoRunner, saldoDespues })
     }
-    // Now filter by date
+
+    // Identificar el ID del ÚLTIMO pago registrado para permitir edición
+    const ultimoPagoId = allMovsConSaldo.find(m => m.tipo === 'pago')?.id
+
+    // Filter by date
     const movsConSaldo = allMovsConSaldo.filter(m => {
         const fecha = new Date(m.createdAt)
         if (desde && fecha < new Date(desde)) return false
@@ -69,6 +76,31 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
         if (t === 'pago') return { label: 'Pago', className: 'badge-green' }
         if (t === 'ajuste') return { label: 'Ajuste', className: 'badge-yellow' }
         return { label: tipo, className: 'badge-gray' }
+    }
+
+    const handleSaveEditPago = async () => {
+        if (!editingPago) return
+        const montoVal = parseFloat(editingPago.monto)
+        if (isNaN(montoVal) || montoVal <= 0) return alert('Ingresá un monto válido.')
+
+        setLoadingEdit(true)
+        const res = await fetch(`/api/clientes/${clienteId}/pagos`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pagoId: editingPago.id,
+                monto: montoVal,
+                nota: editingPago.nota,
+            }),
+        })
+
+        setLoadingEdit(false)
+        if (res.ok) {
+            setEditingPago(null)
+            window.location.reload()
+        } else {
+            alert('Error al actualizar el pago.')
+        }
     }
 
     const generarPDFCuentaCorriente = () => {
@@ -103,7 +135,7 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
         doc.text('SALDO REST.', 172, y)
         y += 6; doc.setDrawColor(200); doc.line(15, y, 195, y); y += 5
 
-        // Rows (show in chronological order for the PDF)
+        // Rows
         const movsOrdenados = [...movsSel].reverse()
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
         for (const m of movsOrdenados) {
@@ -176,6 +208,43 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
                 )}
             </div>
 
+            {/* Modal de edición del último pago */}
+            {editingPago && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
+                }}>
+                    <div style={{ background: 'white', borderRadius: 12, width: '100%', maxWidth: 400, padding: 20 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Editar Último Pago</h3>
+                        <div className="form-group" style={{ marginBottom: 12 }}>
+                            <label style={{ fontSize: 12, fontWeight: 600 }}>Monto del pago ($)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={editingPago.monto}
+                                onChange={e => setEditingPago({ ...editingPago, monto: e.target.value })}
+                                autoFocus
+                            />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 16 }}>
+                            <label style={{ fontSize: 12, fontWeight: 600 }}>Nota / Detalle (Opcional)</label>
+                            <input
+                                type="text"
+                                value={editingPago.nota}
+                                onChange={e => setEditingPago({ ...editingPago, nota: e.target.value })}
+                                placeholder="Efectivo, transferencia, cheque..."
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setEditingPago(null)} disabled={loadingEdit}>Cancelar</button>
+                            <button className="btn btn-primary btn-sm" onClick={handleSaveEditPago} disabled={loadingEdit}>
+                                {loadingEdit ? 'Guardando...' : 'Guardar Cambios'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {movsConSaldo.length === 0 ? (
                 <div className="empty-state" style={{ padding: 8 }}>
                     <p style={{ fontSize: 13 }}>Sin movimientos{desde || hasta ? ' en el período seleccionado' : ' aún'}.</p>
@@ -192,6 +261,7 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
                                 <th style={{ textAlign: 'right' }}>Saldo Ant.</th>
                                 <th style={{ textAlign: 'right' }}>Monto</th>
                                 <th style={{ textAlign: 'right' }}>Saldo Rest.</th>
+                                <th style={{ textAlign: 'center', width: 70 }}>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -199,6 +269,8 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
                                 const montoBruto = Number(m.monto)
                                 const montoFirmado = m.tipo === 'pago' ? -montoBruto : montoBruto
                                 const badge = getBadge(m.tipo)
+                                const esUltimo = m.id === ultimoPagoId
+
                                 return (
                                     <tr key={m.id} style={{ opacity: seleccionados.size > 0 && !seleccionados.has(m.id) ? 0.5 : 1 }}>
                                         <td><input type="checkbox" checked={seleccionados.has(m.id)} onChange={() => toggleSel(m.id)} /></td>
@@ -213,6 +285,36 @@ export function CuentaCorrientePanel({ clienteNombre, clienteId, saldoActual, mo
                                         </td>
                                         <td style={{ textAlign: 'right', fontWeight: 700, color: m.saldoDespues > 0 ? 'var(--red)' : m.saldoDespues < 0 ? 'var(--green)' : 'inherit' }}>
                                             {formatCurrency(m.saldoDespues)}
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                                                {m.tipo === 'pago' && (
+                                                    <button
+                                                        className="btn btn-ghost btn-sm"
+                                                        title="Imprimir Recibo PDF"
+                                                        style={{ padding: '2px 6px', fontSize: 11 }}
+                                                        onClick={() => {
+                                                            const notaLimpia = (m.descripcion || '').replace(/^Pago recibido:\s*/i, '')
+                                                            generarReciboPDF(clienteNombre, montoBruto, notaLimpia, m.saldoAnterior, m.saldoDespues)
+                                                        }}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                                                    </button>
+                                                )}
+                                                {esUltimo && (
+                                                    <button
+                                                        className="btn btn-ghost btn-sm"
+                                                        title="Editar este pago"
+                                                        style={{ padding: '2px 6px', fontSize: 11, color: 'var(--primary)' }}
+                                                        onClick={() => {
+                                                            const notaLimpia = (m.descripcion || '').replace(/^Pago recibido:\s*/i, '')
+                                                            setEditingPago({ id: m.id, monto: montoBruto.toString(), nota: notaLimpia })
+                                                        }}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 )

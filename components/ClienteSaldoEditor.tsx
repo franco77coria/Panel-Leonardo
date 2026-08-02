@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
-import jsPDF from 'jspdf'
+import { generarReciboPDF } from '@/lib/pdf'
 
 interface Props {
     clienteId: string
@@ -18,90 +18,6 @@ export function ClienteSaldoEditor({ clienteId, clienteNombre, saldoActual }: Pr
     const [loading, setLoading] = useState(false)
     const [saved, setSaved] = useState(false)
     const [lastPago, setLastPago] = useState<{ monto: number; nota: string; saldoAnterior: number; saldoNuevo: number } | null>(null)
-
-    const generarReciboPDF = (montoPago: number, notaPago: string, saldoAnterior: number, saldoNuevo: number) => {
-        const doc = new jsPDF({ unit: 'mm', format: [148, 210] }) // A5
-        const pw = 148, margin = 12
-        let y = margin
-
-        // Header
-        doc.setFontSize(20); doc.setFont('helvetica', 'bold')
-        doc.text('RECIBO DE PAGO', pw / 2, y + 8, { align: 'center' }); y += 14
-
-        doc.setFontSize(10); doc.setFont('helvetica', 'normal')
-        doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`, pw / 2, y, { align: 'center' }); y += 10
-
-        // Line
-        doc.setDrawColor(180); doc.line(margin, y, pw - margin, y); y += 8
-
-        // Cliente
-        doc.setFontSize(11); doc.setFont('helvetica', 'normal')
-        doc.text('Cliente:', margin, y)
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(14)
-        doc.text(clienteNombre, margin + 20, y); y += 12
-
-        // Detalle del recibo
-        const boxX = margin, boxW = pw - 2 * margin
-        doc.setDrawColor(200); doc.setLineWidth(0.3)
-        doc.rect(boxX, y, boxW, 52)
-
-        // Saldo anterior
-        y += 8
-        doc.setFontSize(11); doc.setFont('helvetica', 'normal')
-        doc.text('Saldo anterior:', boxX + 6, y)
-        doc.setFont('helvetica', 'bold')
-        const saldoAntColor = saldoAnterior > 0 ? [220, 38, 38] : saldoAnterior < 0 ? [22, 163, 74] : [0, 0, 0]
-        doc.setTextColor(saldoAntColor[0], saldoAntColor[1], saldoAntColor[2])
-        doc.text(formatCurrency(saldoAnterior), boxX + boxW - 6, y, { align: 'right' })
-        doc.setTextColor(0)
-
-        // Pago
-        y += 10
-        doc.setFont('helvetica', 'normal')
-        doc.text('Pago recibido:', boxX + 6, y)
-        doc.setFont('helvetica', 'bold'); doc.setTextColor(22, 163, 74)
-        doc.text(`- ${formatCurrency(montoPago)}`, boxX + boxW - 6, y, { align: 'right' })
-        doc.setTextColor(0)
-
-        // Detalle del pago
-        if (notaPago) {
-            y += 7
-            doc.setFont('helvetica', 'italic'); doc.setFontSize(9)
-            doc.text(`Detalle: ${notaPago}`, boxX + 6, y)
-            doc.setFontSize(11)
-        }
-
-        // Separador
-        y += 8
-        doc.setDrawColor(180)
-        doc.line(boxX + 6, y, boxX + boxW - 6, y)
-
-        // Saldo restante
-        y += 8
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
-        if (saldoNuevo === 0) {
-            doc.setTextColor(22, 163, 74)
-            doc.text('CUENTA SALDADA', boxX + 6, y)
-            doc.text(formatCurrency(0), boxX + boxW - 6, y, { align: 'right' })
-        } else if (saldoNuevo > 0) {
-            doc.text('Saldo restante:', boxX + 6, y)
-            doc.setTextColor(220, 38, 38)
-            doc.text(formatCurrency(saldoNuevo), boxX + boxW - 6, y, { align: 'right' })
-        } else {
-            doc.text('Saldo a favor:', boxX + 6, y)
-            doc.setTextColor(22, 163, 74)
-            doc.text(formatCurrency(Math.abs(saldoNuevo)), boxX + boxW - 6, y, { align: 'right' })
-        }
-        doc.setTextColor(0)
-
-        // Footer
-        y += 20
-        doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(150)
-        doc.text('Papelera Leo | Documento no válido como factura', pw / 2, y, { align: 'center' })
-        doc.setTextColor(0)
-
-        window.open(doc.output('bloburl'), '_blank')
-    }
 
     const handleSaveAjuste = async () => {
         setLoading(true)
@@ -136,7 +52,7 @@ export function ClienteSaldoEditor({ clienteId, clienteNombre, saldoActual }: Pr
         setTimeout(() => {
             setSaved(false)
             window.location.reload()
-        }, 5000) // Give time to generate receipt before reloading
+        }, 5000)
     }
 
     if (!editing) {
@@ -149,7 +65,7 @@ export function ClienteSaldoEditor({ clienteId, clienteNombre, saldoActual }: Pr
                             <button
                                 className="btn btn-sm"
                                 style={{ background: 'white', color: 'var(--green)', border: '1px solid var(--green)', fontWeight: 700, fontSize: 12 }}
-                                onClick={() => generarReciboPDF(lastPago.monto, lastPago.nota, lastPago.saldoAnterior, lastPago.saldoNuevo)}
+                                onClick={() => generarReciboPDF(clienteNombre, lastPago.monto, lastPago.nota, lastPago.saldoAnterior, lastPago.saldoNuevo)}
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                                 Generar Recibo PDF
@@ -160,7 +76,7 @@ export function ClienteSaldoEditor({ clienteId, clienteNombre, saldoActual }: Pr
                 {saved && !lastPago && (
                     <div className="alert alert-green" style={{ marginBottom: 12 }}>Operación guardada correctamente</div>
                 )}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
                     <button className="btn btn-primary" onClick={() => setEditing('pago')}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
                         Registrar Pago
@@ -176,7 +92,7 @@ export function ClienteSaldoEditor({ clienteId, clienteNombre, saldoActual }: Pr
 
     if (editing === 'ajuste') {
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 12 }}>
                 <div className="form-group">
                     <label>Nuevo saldo ($)</label>
                     <input
@@ -200,7 +116,7 @@ export function ClienteSaldoEditor({ clienteId, clienteNombre, saldoActual }: Pr
 
     if (editing === 'pago') {
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 12 }}>
                 <div className="form-group">
                     <label>Monto Entregado ($)</label>
                     <input
@@ -212,10 +128,20 @@ export function ClienteSaldoEditor({ clienteId, clienteNombre, saldoActual }: Pr
                         placeholder="Ej: 50000"
                         autoFocus
                     />
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Este monto se va a descontar del saldo deudado o sumar a favor.</span>
                 </div>
                 <div className="form-group">
                     <label>Nota del Pago (Opcional)</label>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                        {['Efectivo', 'Transferencia', 'Mercadería', 'Cheque'].map(tipo => (
+                            <button
+                                key={tipo}
+                                type="button"
+                                className={`btn btn-sm ${nota === tipo ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => setNota(nota === tipo ? '' : tipo)}
+                                style={{ fontSize: 11 }}
+                            >{tipo}</button>
+                        ))}
+                    </div>
                     <input
                         type="text"
                         value={nota}
@@ -223,6 +149,32 @@ export function ClienteSaldoEditor({ clienteId, clienteNombre, saldoActual }: Pr
                         placeholder="Efectivo, transferencia, cheque..."
                     />
                 </div>
+
+                {/* Resumen dinámico del saldo resultante */}
+                {pago && parseFloat(pago) > 0 && (
+                    <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 12, fontSize: 13 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span>Saldo actual</span>
+                            <span style={{ fontWeight: 700, color: saldoActual > 0 ? 'var(--red)' : saldoActual < 0 ? 'var(--green)' : 'inherit' }}>
+                                {formatCurrency(saldoActual)}
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span>Pago a ingresar</span>
+                            <span style={{ fontWeight: 700, color: 'var(--green)' }}>- {formatCurrency(parseFloat(pago))}</span>
+                        </div>
+                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontWeight: 700 }}>Saldo restante</span>
+                            {(() => {
+                                const nuevo = saldoActual - parseFloat(pago)
+                                return <span style={{ fontWeight: 800, color: nuevo > 0 ? 'var(--red)' : nuevo < 0 ? 'var(--green)' : 'var(--text-muted)' }}>
+                                    {nuevo > 0 ? `Debe ${formatCurrency(nuevo)}` : nuevo < 0 ? `A favor ${formatCurrency(Math.abs(nuevo))}` : 'CUENTA SALDADA'}
+                                </span>
+                            })()}
+                        </div>
+                    </div>
+                )}
+
                 <div style={{ display: 'flex', gap: 8 }}>
                     <button className="btn btn-primary" onClick={handleSavePago} disabled={loading}>
                         {loading ? 'Guardando...' : 'Confirmar Pago'}

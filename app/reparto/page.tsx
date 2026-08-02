@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { generarBoletasLotePDF } from '@/lib/pdf'
 import jsPDF from 'jspdf'
 
 interface Pedido {
@@ -11,7 +12,9 @@ interface Pedido {
     total: number
     createdAt: string
     saldoAnterior: number
+    notas?: string
     cliente: { nombre: string; saldo: number }
+    items: any[]
 }
 
 export default function RepartoPage() {
@@ -57,7 +60,7 @@ export default function RepartoPage() {
         return idx >= 0 ? idx + 1 : 0
     }
 
-    const generarPDF = () => {
+    const generarPDFPlanilla = () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
         let y = 20
 
@@ -119,10 +122,16 @@ export default function RepartoPage() {
             <div className="page-header">
                 <h1 className="page-title">Planilla de Reparto</h1>
                 {buscado && pedidos.length > 0 && (
-                    <button onClick={generarPDF} disabled={seleccionados.length === 0} className="btn btn-primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                        Exportar PDF ({seleccionados.length})
-                    </button>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <button onClick={() => generarBoletasLotePDF(pedidosSel)} disabled={seleccionados.length === 0} className="btn btn-secondary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                            Imprimir Boletas Reparto ({seleccionados.length})
+                        </button>
+                        <button onClick={generarPDFPlanilla} disabled={seleccionados.length === 0} className="btn btn-primary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                            Exportar Planilla PDF ({seleccionados.length})
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -154,7 +163,7 @@ export default function RepartoPage() {
                 ) : (
                     <>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
-                            💡 El orden en que seleccionás los pedidos es el orden que va a tener la planilla impresa
+                            💡 El orden en que seleccionás los pedidos es el orden que va a tener la planilla impresa y el archivo de boletas
                         </div>
                         <div className="table-container">
                             <table>
