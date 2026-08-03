@@ -141,32 +141,45 @@ export function ExportClientesPDF({ clientes }: { clientes: ClienteRow[] }) {
 interface ArticuloRow {
     nombre: string
     proveedor: string
-    precio: number
+    precio?: number
+    costo?: number
+    lista1?: number
+    lista2?: number
+    lista3?: number
     unidad: string
 }
 
 export function ExportArticulosPDF({ articulos }: { articulos: ArticuloRow[] }) {
     const exportar = () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-        let y = pdfHeader(doc, 'Lista de Precios', `${articulos.length} artículos`)
+        let y = pdfHeader(doc, 'Lista de Precios de Venta', `${articulos.length} artículos`)
 
         const cols = [
-            { label: 'ARTÍCULO', x: 22 },
-            { label: 'PROVEEDOR', x: 120 },
-            { label: 'UNIDAD', x: 155 },
-            { label: 'PRECIO', x: 180 },
+            { label: 'ARTÍCULO', x: 20 },
+            { label: 'PROVEEDOR', x: 95 },
+            { label: 'COSTO', x: 125 },
+            { label: 'L1 (+20%)', x: 148 },
+            { label: 'L2 (+25%)', x: 168 },
+            { label: 'L3 (+35%)', x: 188 },
         ]
         y = pdfTableHeader(doc, y, cols)
 
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
         for (const a of articulos) {
             y = checkPage(doc, y)
-            doc.text(a.nombre.substring(0, 45), 22, y)
-            doc.text((a.proveedor || '–').substring(0, 15), 120, y)
-            doc.text(a.unidad, 155, y)
+            const cBase = a.costo || a.precio || 0
+            const l1 = a.lista1 ?? (cBase * 1.20)
+            const l2 = a.lista2 ?? (cBase * 1.25)
+            const l3 = a.lista3 ?? (cBase * 1.35)
+
+            doc.text(a.nombre.substring(0, 38), 20, y)
+            doc.text((a.proveedor || '–').substring(0, 14), 95, y)
+            doc.text(formatCurrency(cBase), 125, y)
             doc.setFont('helvetica', 'bold')
-            doc.text(formatCurrency(a.precio), 180, y)
+            doc.text(formatCurrency(l1), 148, y)
             doc.setFont('helvetica', 'normal')
+            doc.text(formatCurrency(l2), 168, y)
+            doc.text(formatCurrency(l3), 188, y)
             y += 6
         }
 
@@ -180,6 +193,7 @@ export function ExportArticulosPDF({ articulos }: { articulos: ArticuloRow[] }) 
         </button>
     )
 }
+
 
 // Export All Packs PDF
 interface PackRow { nombre: string; descripcion?: string; rubro?: string; items: { nombre: string; cantidad: number; unidad: string; precio: number }[] }

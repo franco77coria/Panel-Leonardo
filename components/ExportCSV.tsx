@@ -35,7 +35,11 @@ interface ArticuloCSVRow {
     proveedor: string
     rubro: string
     unidad: string
-    precio: number
+    precio?: number
+    costo?: number
+    lista1?: number
+    lista2?: number
+    lista3?: number
     fecha: string
 }
 
@@ -46,15 +50,25 @@ export function ExportArticulosCSV({ articulos }: { articulos: ArticuloCSVRow[] 
             return
         }
 
-        const header = ['Artículo', 'Proveedor', 'Rubro', 'Unidad', 'Precio', 'Últ. actualización']
-        const rows = articulos.map(a => [
-            a.nombre,
-            a.proveedor || '',
-            a.rubro || '',
-            a.unidad,
-            formatCurrency(a.precio),
-            formatDate(a.fecha),
-        ])
+        const header = ['Artículo', 'Proveedor', 'Rubro', 'Unidad', 'Costo', 'Lista 1 (+20%)', 'Lista 2 (+25%)', 'Lista 3 (+35%)', 'Últ. actualización']
+        const rows = articulos.map(a => {
+            const cBase = a.costo || a.precio || 0
+            const l1 = a.lista1 ?? (cBase * 1.20)
+            const l2 = a.lista2 ?? (cBase * 1.25)
+            const l3 = a.lista3 ?? (cBase * 1.35)
+
+            return [
+                a.nombre,
+                a.proveedor || '',
+                a.rubro || '',
+                a.unidad,
+                formatCurrency(cBase),
+                formatCurrency(l1),
+                formatCurrency(l2),
+                formatCurrency(l3),
+                formatDate(a.fecha),
+            ]
+        })
 
         downloadCSV('articulos.csv', [header, ...rows])
     }
@@ -66,6 +80,7 @@ export function ExportArticulosCSV({ articulos }: { articulos: ArticuloCSVRow[] 
         </button>
     )
 }
+
 
 interface DeudorCSVRow {
     nombre: string

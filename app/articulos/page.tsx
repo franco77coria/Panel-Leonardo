@@ -21,6 +21,7 @@ export default function ArticulosPage() {
     const [q, setQ] = useState('')
     const [rubroId, setRubroId] = useState('')
     const [proveedorId, setProveedorId] = useState('')
+    const [listaVista, setListaVista] = useState<'todas' | '1' | '2' | '3'>('todas')
     const [loading, setLoading] = useState(false)
     const [showMasivo, setShowMasivo] = useState(false)
     const [masivo, setMasivo] = useState({ tipo: 'rubro', id: '', porcentaje: '' })
@@ -134,15 +135,32 @@ export default function ArticulosPage() {
             <div className="page-header">
                 <h1 className="page-title">Artículos</h1>
                 <div style={{ display: 'flex', gap: 10 }}>
-                    <ExportArticulosPDF articulos={articulos.map(a => ({ nombre: a.nombre, proveedor: a.proveedor?.nombre || '', precio: Number(a.precio), unidad: a.unidad }))} />
-                    <ExportArticulosCSV articulos={articulos.map(a => ({
-                        nombre: a.nombre,
-                        proveedor: a.proveedor?.nombre || '',
-                        rubro: a.rubro?.nombre || '',
-                        unidad: a.unidad,
-                        precio: Number(a.precio),
-                        fecha: a.fechaPrecio,
-                    }))} />
+                    <ExportArticulosPDF articulos={articulos.map(a => {
+                        const base = Number(a.costo) > 0 ? Number(a.costo) : Number(a.precio)
+                        return {
+                            nombre: a.nombre,
+                            proveedor: a.proveedor?.nombre || '',
+                            costo: Number(a.costo),
+                            lista1: base * 1.20,
+                            lista2: base * 1.25,
+                            lista3: base * 1.35,
+                            unidad: a.unidad
+                        }
+                    })} />
+                    <ExportArticulosCSV articulos={articulos.map(a => {
+                        const base = Number(a.costo) > 0 ? Number(a.costo) : Number(a.precio)
+                        return {
+                            nombre: a.nombre,
+                            proveedor: a.proveedor?.nombre || '',
+                            rubro: a.rubro?.nombre || '',
+                            unidad: a.unidad,
+                            costo: Number(a.costo),
+                            lista1: base * 1.20,
+                            lista2: base * 1.25,
+                            lista3: base * 1.35,
+                            fecha: a.fechaPrecio,
+                        }
+                    })} />
                     <PrintButton />
                     <button onClick={() => setShowMasivo(!showMasivo)} className="btn btn-secondary">Actualización Masiva</button>
                     <button onClick={() => setShowNuevo(!showNuevo)} className="btn btn-primary">+ Nuevo Artículo</button>
@@ -260,6 +278,12 @@ export default function ArticulosPage() {
                         <option value="">Todos los proveedores</option>
                         {proveedoresUnicos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                     </select>
+                    <select value={listaVista} onChange={e => setListaVista(e.target.value as any)}>
+                        <option value="todas">Ver Precios de Venta (1, 2 y 3)</option>
+                        <option value="1">Solo Lista 1 (+20%)</option>
+                        <option value="2">Solo Lista 2 (+25%)</option>
+                        <option value="3">Solo Lista 3 (+35%)</option>
+                    </select>
                     <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>{articulos.length} artículos</span>
                 </div>
 
@@ -275,14 +299,22 @@ export default function ArticulosPage() {
                                         <th className="hide-mobile">Rubro</th>
                                         <th>Proveedor</th>
                                         <th>Costo</th>
+                                        {(listaVista === 'todas' || listaVista === '1') && <th style={{ color: 'var(--primary-light)', whiteSpace: 'nowrap' }}>Lista 1 (+20%)</th>}
+                                        {(listaVista === 'todas' || listaVista === '2') && <th className={listaVista === 'todas' ? 'hide-mobile' : ''} style={{ color: '#059669', whiteSpace: 'nowrap' }}>Lista 2 (+25%)</th>}
+                                        {(listaVista === 'todas' || listaVista === '3') && <th className={listaVista === 'todas' ? 'hide-mobile' : ''} style={{ color: '#d97706', whiteSpace: 'nowrap' }}>Lista 3 (+35%)</th>}
                                         <th>Unidad</th>
-                                        <th>Últ. Actualización</th>
+                                        <th className="hide-mobile">Últ. Actualización</th>
                                         <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {articulos.slice((page - 1) * PER_PAGE, page * PER_PAGE).map(a => {
                                         const dias = daysSince(a.fechaPrecio)
+                                        const costoBase = Number(a.costo) > 0 ? Number(a.costo) : Number(a.precio)
+                                        const lista1 = costoBase * 1.20
+                                        const lista2 = costoBase * 1.25
+                                        const lista3 = costoBase * 1.35
+
                                         return (
                                             <tr key={a.id}>
                                                 <td><ArticuloNombreEditor articuloId={a.id} nombre={a.nombre} onUpdate={fetchAll} /></td>
@@ -307,8 +339,29 @@ export default function ArticulosPage() {
                                                 <td>
                                                     <ArticuloCostoEditor articuloId={a.id} costo={Number(a.costo)} onUpdate={fetchAll} />
                                                 </td>
+                                                {(listaVista === 'todas' || listaVista === '1') && (
+                                                    <td>
+                                                        <span style={{ fontWeight: 700, color: 'var(--primary-light)' }}>
+                                                            {formatCurrency(lista1)}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {(listaVista === 'todas' || listaVista === '2') && (
+                                                    <td className={listaVista === 'todas' ? 'hide-mobile' : ''}>
+                                                        <span style={{ fontWeight: 700, color: '#059669' }}>
+                                                            {formatCurrency(lista2)}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {(listaVista === 'todas' || listaVista === '3') && (
+                                                    <td className={listaVista === 'todas' ? 'hide-mobile' : ''}>
+                                                        <span style={{ fontWeight: 700, color: '#d97706' }}>
+                                                            {formatCurrency(lista3)}
+                                                        </span>
+                                                    </td>
+                                                )}
                                                 <td><span className="badge badge-gray">{a.unidad}</span></td>
-                                                <td>
+                                                <td className="hide-mobile">
                                                     <span style={{ color: dias > 30 ? 'var(--red)' : 'var(--text-muted)', fontSize: 13, fontWeight: dias > 30 ? 700 : 400 }}>
                                                         {formatDate(a.fechaPrecio)} {dias > 30 && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth={2} style={{ verticalAlign: 'middle', marginLeft: 4 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>}
                                                     </span>
@@ -322,6 +375,7 @@ export default function ArticulosPage() {
                                 </tbody>
                             </table>
                         )}
+
                         {/* Pagination */}
                         {articulos.length > PER_PAGE && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
