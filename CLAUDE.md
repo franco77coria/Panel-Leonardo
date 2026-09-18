@@ -105,15 +105,16 @@ Lista 3 → costo × 1.35  (+35%)
 
 ---
 
-## Generación de PDF boleta
+## Generación de PDF boleta / presupuesto
 
-**Archivo:** `components/PedidoDetalle.tsx` → función `generarPDF()`
+**Archivo:** `components/PedidoDetalle.tsx` → función `generarPDF()` & `lib/pdf.ts` → `renderBoletaEnDocumento()`
 
 - Librería: jsPDF (formato A4, unidad mm)
-- Header: "Papelera" (grande) + "Leo" + teléfono (izquierda) + QR WhatsApp (derecha)
-- Contacto Leo: `11 3808-8724` / `https://wa.me/5491138088724`
-- Incluye: número de pedido, fecha, cliente, tabla de ítems, subtotal, saldo anterior, total
-- Los otros PDFs (listas, clientes, packs) usan `pdfHeader()` en `components/ExportPDF.tsx`
+- Diseño anónimo y neutro (sin mención de Papelera Leo, teléfono ni código QR)
+- Header: Banner gris redondeado "PRESUPUESTO", recuadros redondeados para Cliente (izq) y N° Presupuesto + Fecha (der)
+- Tabla: Grilla cuadriculada con divisores punteados horizontales y columnas en tonos grisáceos
+- Incluye: número de presupuesto, fecha y hora, cliente, tabla de ítems, subtotal, saldo anterior, total presupuesto y notas
+- Los otros PDFs (listas, clientes, packs) usan estilos neutrales sin datos de contacto
 
 ---
 

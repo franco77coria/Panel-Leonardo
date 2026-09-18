@@ -139,7 +139,7 @@ export default function PagosPage() {
 
         y += 12
         doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(150)
-        doc.text('Papelera Leo | Documento no válido como factura', 105, y, { align: 'center' })
+        doc.text('Documento no válido como factura', 105, y, { align: 'center' })
 
         window.open(doc.output('bloburl'), '_blank')
     }

@@ -198,36 +198,89 @@ export default function ListasPreciosPage() {
 
     const generarPDF = () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-        let y = 20
+        const pw = 210, margin = 15
+        const cw = pw - 2 * margin // 180mm
 
-        doc.setFontSize(26); doc.setFont('helvetica', 'bold')
-        doc.text('PAPELERA', 105, y, { align: 'center' }); y += 8
-        doc.setFontSize(10); doc.setFont('helvetica', 'normal')
-        doc.text('Leo  |  Tel: 11 3808-8724 - WhatsApp', 105, y, { align: 'center' }); y += 10
+        const renderListaHeader = () => {
+            let curY = 16
+            // Banner superior
+            doc.setFillColor(236, 239, 243)
+            doc.setDrawColor(165, 172, 182)
+            doc.setLineWidth(0.35)
+            doc.roundedRect(margin, curY, cw, 13, 2, 2, 'FD')
 
-        doc.setFontSize(16); doc.setFont('helvetica', 'bold')
-        doc.text(nombreLista || 'Lista de Precios', 105, y, { align: 'center' }); y += 7
+            doc.setFontSize(16); doc.setFont('helvetica', 'bold')
+            doc.setTextColor(45, 55, 72)
+            doc.text((nombreLista || 'LISTA DE PRECIOS').toUpperCase(), pw / 2, curY + 8.5, { align: 'center' })
+            curY += 18
 
-        doc.setFontSize(10); doc.setFont('helvetica', 'normal')
-        doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 105, y, { align: 'center' }); y += 6
-        doc.line(20, y, 190, y); y += 8
+            // Subtítulo con fecha
+            doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(90, 100, 110)
+            doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, margin, curY)
+            doc.text(`${items.length} artículos`, margin + cw, curY, { align: 'right' })
+            doc.setTextColor(0)
+            curY += 5
 
-        doc.setFillColor(245, 246, 248)
-        doc.rect(20, y - 4, 170, 8, 'F')
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
-        doc.text('ARTÍCULO', 22, y)
-        doc.text('PRECIO', 175, y, { align: 'right' })
-        y += 6; doc.line(20, y, 190, y); y += 6
+            // Encabezado de tabla
+            doc.setFillColor(224, 228, 234)
+            doc.setDrawColor(160, 168, 178)
+            doc.setLineWidth(0.3)
+            doc.rect(margin, curY, cw, 7.5, 'FD')
 
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
-        for (const item of items) {
-            if (y > 270) { doc.addPage(); y = 20 }
-            doc.text(item.nombre.substring(0, 55), 22, y)
-            doc.setFont('helvetica', 'bold')
-            doc.text(formatCurrency(item.precio), 175, y, { align: 'right' })
-            doc.setFont('helvetica', 'normal')
-            y += 7
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5)
+            doc.setTextColor(45, 55, 68)
+            doc.text('ARTÍCULO', margin + 4, curY + 5)
+            doc.text('PRECIO', margin + cw - 4, curY + 5, { align: 'right' })
+            doc.setTextColor(0)
+            curY += 7.5
+
+            return curY
         }
+
+        let y = renderListaHeader()
+        const rowH = 6.5
+
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i]
+            if (y > 268) {
+                // Cerrar tabla en la página actual
+                doc.setDrawColor(160, 168, 178); doc.setLineWidth(0.3)
+                doc.line(margin, y, margin + cw, y)
+                doc.addPage()
+                y = renderListaHeader()
+            }
+
+            if (i % 2 === 1) {
+                doc.setFillColor(252, 252, 254)
+                doc.rect(margin, y, cw, rowH, 'F')
+            }
+
+            // Separador horizontal punteado
+            doc.setLineDashPattern([0.8, 0.8], 0)
+            doc.setDrawColor(200, 205, 212)
+            doc.setLineWidth(0.2)
+            doc.line(margin, y + rowH, margin + cw, y + rowH)
+            doc.setLineDashPattern([], 0)
+
+            // Bordes laterales
+            doc.setDrawColor(160, 168, 178)
+            doc.line(margin, y, margin, y + rowH)
+            doc.line(margin + cw, y, margin + cw, y + rowH)
+
+            // Contenido
+            doc.setTextColor(30, 35, 45)
+            doc.text(item.nombre.substring(0, 58), margin + 4, y + 4.5)
+            doc.setFont('helvetica', 'bold')
+            doc.text(formatCurrency(item.precio), margin + cw - 4, y + 4.5, { align: 'right' })
+            doc.setFont('helvetica', 'normal')
+
+            y += rowH
+        }
+
+        // Cierre final de tabla
+        doc.setDrawColor(160, 168, 178); doc.setLineWidth(0.3)
+        doc.line(margin, y, margin + cw, y)
 
         window.open(doc.output('bloburl'), '_blank')
     }

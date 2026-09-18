@@ -6,10 +6,6 @@ import Link from 'next/link'
 import { formatCurrency, formatDate, formatDateTime, getSaldoStatus, getEstadoBadge, round2 } from '@/lib/utils'
 import { renderBoletaEnDocumento } from '@/lib/pdf'
 import jsPDF from 'jspdf'
-import QRCode from 'qrcode'
-
-const TELEFONO_LEO = '11 3808-8724'
-const WA_LINK = 'https://wa.me/5491138088724'
 
 interface Articulo { id: string; nombre: string; precio: number; costo?: number; rubro?: { nombre: string } }
 interface Item { id: string; articuloId: string; articulo: Articulo; cantidad: number; precioUnitario: number; descuento: number; estadoItem?: string | null }
@@ -162,12 +158,7 @@ export function PedidoDetalle({ pedido: initialPedido }: { pedido: Pedido }) {
     // ==================== PDF BOLETA ====================
     const generarPDF = async () => {
         const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-        let qrDataUrl = ''
-        try {
-            qrDataUrl = await QRCode.toDataURL(WA_LINK, { width: 200, margin: 1, color: { dark: '#1a2332', light: '#ffffff' } })
-        } catch { /* QR error */ }
-
-        await renderBoletaEnDocumento(doc, { ...pedido, items, notas: notasPedido }, qrDataUrl)
+        await renderBoletaEnDocumento(doc, { ...pedido, items, notas: notasPedido })
         window.open(doc.output('bloburl'), '_blank')
     }
 
